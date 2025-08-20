@@ -1,0 +1,36 @@
+# Core Python packages
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Data manipulation and analysis
+pandas>=1.5.3
+numpy>=1.24.3
+
+# Machine Learning (Core)
+scikit-learn>=1.3.0
+
+# ML libraries (actually used)
+lightgbm>=4.0.0
+catboost>=1.2.0
+
+# HTTP requests and API
+requests>=2.31.0
+
+# Weather and data APIs (actually used)
+meteostat>=1.0.0
+
+# Data processing
+pyarrow>=12.0.1
+
+# Utilities
+python-dotenv>=1.0.0
+
+# SHAP for feature selection (actually used)
+shap>=0.42.0
+
+# PyTorch for TCN models (actually used)
+torch>=2.0.0
+
+# Additional utilities (actually used)
+tqdm>=4.65.0
+joblib>=1.3.0
