@@ -192,18 +192,7 @@ jobs:
           TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
           # Create detailed commit message
-          git commit -m "🤖 Auto-update: Hourly data pipeline - $TIMESTAMP
-
-🔄 Data Collection: 6 hours of new weather and pollution data
-📊 Data Processing: Scripts 02 and 03 applied to merged dataset
-💾 All datasets updated and committed:
-  - Historical merged data (merged_data.csv)
-  - Preprocessed features (phase1_no_leakage_data.csv)
-  - Selected features (phase1_fixed_selected_features.csv)
-  - Raw weather and pollution data
-  - Metadata and backups
-
-Pipeline: Collection → Merge → Preprocess → Feature Selection → Commit"
+          git commit -m "🤖 Auto-update: Hourly data pipeline - $TIMESTAMP - 6 hours data collected, scripts 02 and 03 executed, all datasets committed"
           
           # Push to GitHub
           git push
