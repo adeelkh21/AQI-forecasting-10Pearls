@@ -47,8 +47,9 @@ class FixedFeatureSelector:
         print("🔍 PHASE 1: FIXED FEATURE SELECTION (NO DATA LEAKAGE)")
         print("=" * 80)
         
-        # Data paths
+        # Data paths - try no-leakage first, fallback to processed data
         self.input_path = "data_repositories/features/phase1_no_leakage_data.csv"
+        self.fallback_path = "data_repositories/features/phase1_fixed_selected_features.csv"
         self.output_path = "data_repositories/features/phase1_fixed_selected_features.csv"
         self.feature_columns_path = "data_repositories/features/phase1_fixed_feature_columns.pkl"
         self.scaler_path = "data_repositories/features/phase1_fixed_feature_scaler.pkl"
@@ -71,21 +72,37 @@ class FixedFeatureSelector:
         """Load the fixed no-leakage data with multi-horizon targets"""
         print(f"\n📥 LOADING FIXED NO-LEAKAGE DATA")
         print("-" * 40)
-        # Print input dataset date range at the start
-        try:
-            if os.path.exists(self.input_path):
-                tmp = pd.read_csv(self.input_path, usecols=['timestamp'])
-                if not tmp.empty:
-                    tmp['timestamp'] = pd.to_datetime(tmp['timestamp'])
-                    print(f"📅 Feature-selection input range: {tmp['timestamp'].min()} → {tmp['timestamp'].max()}")
-            else:
-                print(f"📅 Feature-selection input: MISSING {self.input_path}")
-        except Exception as e:
-            print(f"⚠️ Could not read input date range: {e}")
         
+        # Check if input file exists
         if not os.path.exists(self.input_path):
             print(f"❌ Input file not found: {self.input_path}")
-            return None
+            print(f"💡 This usually means the data preprocessing step hasn't run yet.")
+            print(f"💡 Please run 02_data_preprocessing.py first to create the required data.")
+            
+            # Check what preprocessing files exist
+            preprocessing_dir = "data_repositories/features/"
+            if os.path.exists(preprocessing_dir):
+                print(f"📁 Available files in {preprocessing_dir}:")
+                for file in os.listdir(preprocessing_dir):
+                    if file.endswith('.csv'):
+                        print(f"   - {file}")
+            
+            # Try fallback to processed data if available
+            if os.path.exists(self.fallback_path):
+                print(f"🔄 Trying fallback to: {self.fallback_path}")
+                self.input_path = self.fallback_path
+            else:
+                print(f"❌ No fallback data available. Pipeline cannot continue.")
+                return None
+            
+        # Print input dataset date range at the start
+        try:
+            tmp = pd.read_csv(self.input_path, usecols=['timestamp'])
+            if not tmp.empty:
+                tmp['timestamp'] = pd.to_datetime(tmp['timestamp'])
+                print(f"📅 Feature-selection input range: {tmp['timestamp'].min()} → {tmp['timestamp'].max()}")
+        except Exception as e:
+            print(f"⚠️ Could not read input date range: {e}")
         
         # Load data
         df = pd.read_csv(self.input_path)
