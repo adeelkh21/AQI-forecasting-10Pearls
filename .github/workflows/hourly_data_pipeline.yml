@@ -1,9 +1,9 @@
-name: Hourly Data Pipeline (Every 2 Hours)
+name: Hourly Data Pipeline (Every Hour - 6 Hours Collection)
 
 on:
   schedule:
-    # Run every 2 hours
-    - cron: '0 */2 * * *'
+    # Run every hour
+    - cron: '0 * * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -22,7 +22,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements-ci.txt
+        echo "✅ Dependencies installed successfully"
         
     - name: Create data directories
       run: |
@@ -37,26 +38,146 @@ jobs:
         echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> $GITHUB_ENV
         echo "METEOSTAT_API_KEY=${{ secrets.METEOSTAT_API_KEY }}" >> $GITHUB_ENV
         
-    - name: Run data collection
+    - name: Load and verify historical data
       run: |
-        echo "🔄 Starting data collection (past 2 hours)..."
-        python 01_data_collection.py
+        echo "📂 Loading historical data from repository..."
+        if [ -f "data_repositories/historical_data/processed/merged_data.csv" ]; then
+          echo "✅ Historical data found: data_repositories/historical_data/processed/merged_data.csv"
+          echo "📊 Historical data info:"
+          python -c "
+          import pandas as pd
+          try:
+              df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
+              print(f'   Records: {len(df):,}')
+              if 'timestamp' in df.columns:
+                  df['timestamp'] = pd.to_datetime(df['timestamp'])
+                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
+              print(f'   Columns: {len(df.columns)}')
+          except Exception as e:
+              print(f'   Error reading historical data: {e}')
+          "
+        else
+          echo "⚠️ No historical data found. Will create new dataset."
+        fi
+        
+    - name: Create 6-hour collection script
+      run: |
+        echo "📝 Creating 6-hour data collection script..."
+        echo 'import os' > collect_6hours.py
+        echo 'import sys' >> collect_6hours.py
+        echo 'sys.path.append(".")' >> collect_6hours.py
+        echo 'from datetime import datetime, timedelta' >> collect_6hours.py
+        echo '' >> collect_6hours.py
+        echo '# Import the DataCollector class' >> collect_6hours.py
+        echo 'from 01_data_collection import DataCollector' >> collect_6hours.py
+        echo '' >> collect_6hours.py
+        echo '# Calculate 6 hours ago from now' >> collect_6hours.py
+        echo 'now = datetime.now()' >> collect_6hours.py
+        echo 'start_time = now - timedelta(hours=6)' >> collect_6hours.py
+        echo '' >> collect_6hours.py
+        echo 'print(f"🕐 Collection window: {start_time} to {now}")' >> collect_6hours.py
+        echo 'print(f"⏰ Duration: 6 hours")' >> collect_6hours.py
+        echo '' >> collect_6hours.py
+        echo '# Create collector with specific time window' >> collect_6hours.py
+        echo 'collector = DataCollector(start_date=start_time, end_date=now, mode="hourly")' >> collect_6hours.py
+        echo 'success = collector.run_pipeline()' >> collect_6hours.py
+        echo '' >> collect_6hours.py
+        echo 'if success:' >> collect_6hours.py
+        echo '    print("✅ 6-hour data collection completed successfully")' >> collect_6hours.py
+        echo 'else:' >> collect_6hours.py
+        echo '    print("❌ 6-hour data collection failed")' >> collect_6hours.py
+        echo '    sys.exit(1)' >> collect_6hours.py
+        echo "✅ Script created successfully"
+        
+    - name: Collect new data (past 6 hours)
+      run: |
+        echo "🔄 Starting data collection (past 6 hours)..."
+        echo "📅 Current time: $(date -u)"
+        echo "⏰ Collecting data for past 6 hours..."
+        python collect_6hours.py
         echo "✅ Data collection completed"
         
-    - name: Run data preprocessing
+    - name: Verify merged dataset
       run: |
-        echo "🔄 Starting data preprocessing..."
+        echo "🔍 Verifying merged dataset after collection..."
+        if [ -f "data_repositories/historical_data/processed/merged_data.csv" ]; then
+          echo "✅ Merged dataset updated successfully"
+          echo "📊 Updated dataset info:"
+          python -c "
+          import pandas as pd
+          try:
+              df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
+              print(f'   Total records: {len(df):,}')
+              if 'timestamp' in df.columns:
+                  df['timestamp'] = pd.to_datetime(df['timestamp'])
+                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
+                  print(f'   Latest timestamp: {df[\"timestamp\"].max()}')
+              print(f'   Total columns: {len(df.columns)}')
+          except Exception as e:
+              print(f'   Error reading updated dataset: {e}')
+          "
+        else
+          echo "❌ Merged dataset not found after collection"
+          exit 1
+        fi
+        
+    - name: Run data preprocessing (script 02)
+      run: |
+        echo "🔄 Starting data preprocessing (script 02)..."
+        echo "📁 Input: data_repositories/historical_data/processed/merged_data.csv"
         python 02_data_preprocessing.py
-        echo "✅ Data preprocessing completed"
         
-    - name: Run feature selection
+        # Verify output
+        if [ -f "data_repositories/features/phase1_no_leakage_data.csv" ]; then
+          echo "✅ Preprocessing completed successfully"
+          echo "📊 Preprocessing output info:"
+          python -c "
+          import pandas as pd
+          try:
+              df = pd.read_csv('data_repositories/features/phase1_no_leakage_data.csv')
+              print(f'   Records: {len(df):,}')
+              if 'timestamp' in df.columns:
+                  df['timestamp'] = pd.to_datetime(df['timestamp'])
+                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
+              print(f'   Features: {len(df.columns)}')
+          except Exception as e:
+              print(f'   Error reading preprocessing output: {e}')
+          "
+        else
+          echo "❌ Preprocessing output not found"
+          exit 1
+        fi
+        
+    - name: Run feature selection (script 03)
       run: |
-        echo "🔄 Starting feature selection..."
+        echo "🔄 Starting feature selection (script 03)..."
+        echo "📁 Input: data_repositories/features/phase1_no_leakage_data.csv"
         python 03_feature_selection.py
-        echo "✅ Feature selection completed"
         
-    - name: Commit and push updated data
+        # Verify output
+        if [ -f "data_repositories/features/phase1_fixed_selected_features.csv" ]; then
+          echo "✅ Feature selection completed successfully"
+          echo "📊 Feature selection output info:"
+          python -c "
+          import pandas as pd
+          try:
+              df = pd.read_csv('data_repositories/features/phase1_fixed_selected_features.csv')
+              print(f'   Records: {len(df):,}')
+              if 'timestamp' in df.columns:
+                  df['timestamp'] = pd.to_datetime(df['timestamp'])
+                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
+              print(f'   Selected features: {len(df.columns)}')
+          except Exception as e:
+              print(f'   Error reading feature selection output: {e}')
+          "
+        else
+          echo "❌ Feature selection output not found"
+          exit 1
+        fi
+        
+    - name: Commit and push all updated data
       run: |
+        echo "💾 Committing all updated datasets to GitHub..."
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
@@ -65,24 +186,73 @@ jobs:
         
         # Check if there are changes to commit
         if git diff --staged --quiet; then
-          echo "No changes to commit"
+          echo "ℹ️ No changes to commit"
         else
-          git commit -m "🤖 Auto-update: 2-hour data pipeline $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          # Get current timestamp for commit message
+          TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          
+          # Create detailed commit message
+          git commit -m "🤖 Auto-update: Hourly data pipeline - $TIMESTAMP
+
+🔄 Data Collection: 6 hours of new weather and pollution data
+📊 Data Processing: Scripts 02 and 03 applied to merged dataset
+💾 All datasets updated and committed:
+  - Historical merged data (merged_data.csv)
+  - Preprocessed features (phase1_no_leakage_data.csv)
+  - Selected features (phase1_fixed_selected_features.csv)
+  - Raw weather and pollution data
+  - Metadata and backups
+
+Pipeline: Collection → Merge → Preprocess → Feature Selection → Commit"
+          
+          # Push to GitHub
           git push
-          echo "✅ Data committed and pushed"
+          echo "✅ All datasets committed and pushed to GitHub successfully"
         fi
         
     - name: Upload data artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: data-pipeline-artifacts
+        name: hourly-data-pipeline-artifacts
         path: |
           data_repositories/
         retention-days: 7
         
     - name: Pipeline summary
       run: |
-        echo "🎉 2-Hour Data Pipeline Completed Successfully!"
-        echo "📊 Data collected and processed at: $(date -u)"
-        echo "📁 Data saved to: data_repositories/"
-        echo "🔄 Next run scheduled for: $(date -u -d '+2 hours')"
+        echo ""
+        echo "🎉 HOURLY DATA PIPELINE COMPLETED SUCCESSFULLY!"
+        echo "=================================================================="
+        echo "📊 Pipeline executed at: $(date -u)"
+        echo "🔄 Data collection: 6 hours of new data collected"
+        echo "📁 Data merged into: data_repositories/historical_data/processed/merged_data.csv"
+        echo "🔧 Script 02 executed: Data preprocessing completed"
+        echo "🎯 Script 03 executed: Feature selection completed"
+        echo "💾 All datasets committed to GitHub repository"
+        echo "📂 Artifacts uploaded for next pipeline steps"
+        echo "🔄 Next run scheduled for: $(date -u -d '+1 hour')"
+        echo "=================================================================="
+        
+        # Final verification
+        echo ""
+        echo "🔍 FINAL VERIFICATION:"
+        if [ -f "data_repositories/historical_data/processed/merged_data.csv" ]; then
+          echo "✅ Historical merged dataset: READY"
+        else
+          echo "❌ Historical merged dataset: MISSING"
+        fi
+        
+        if [ -f "data_repositories/features/phase1_no_leakage_data.csv" ]; then
+          echo "✅ Preprocessed features: READY"
+        else
+          echo "❌ Preprocessed features: MISSING"
+        fi
+        
+        if [ -f "data_repositories/features/phase1_fixed_selected_features.csv" ]; then
+          echo "✅ Selected features: READY"
+        else
+          echo "❌ Selected features: MISSING"
+        fi
+        
+        echo ""
+        echo "🚀 Pipeline ready for next steps (ML training, forecasting, etc.)"
