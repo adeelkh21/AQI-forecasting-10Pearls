@@ -1,0 +1,20 @@
+{
+    "timestamp": "20250820_152435",
+    "records": 168,
+    "start_date": "2025-08-13 16:00:00",
+    "end_date": "2025-08-20 15:00:00",
+    "missing_values": {
+        "timestamp": 0,
+        "temperature": 0,
+        "dew_point": 0,
+        "relative_humidity": 0,
+        "precipitation": 0,
+        "snow": 168,
+        "wind_direction": 0,
+        "wind_speed": 0,
+        "wpgt": 168,
+        "pressure": 0,
+        "tsun": 168,
+        "coco": 0
+    }
+}

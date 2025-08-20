@@ -1,0 +1,6 @@
+Model,CV_RMSE,Test_RMSE,Test_R²,Best_Params
+svr,31.467065858657477,31.36666521624103,-0.05879818400279446,"{'C': 0.39493644472223327, 'epsilon': 0.15226839054973001, 'gamma': 0.002167305840089435, 'kernel': 'rbf'}"
+xgboost,32.03294786106291,33.21435173105788,-0.18721138123168157,"{'colsample_bytree': 0.6307919639315172, 'learning_rate': 0.02382184154464129, 'max_depth': 9, 'n_estimators': 2319, 'reg_alpha': 5.233480488540088, 'reg_lambda': 2.6568139241144926, 'subsample': 0.8533615026041694}"
+catboost,29.78629959792806,34.08281382765303,-0.2501075413513505,"{'border_count': 94, 'depth': 7, 'iterations': 1092, 'l2_leaf_reg': 5.144485562426463, 'learning_rate': 0.10666994718758475}"
+random_forest,32.008980178367885,34.1418530661272,-0.2544422375152553,"{'max_depth': 12, 'max_features': 'sqrt', 'min_samples_leaf': 4, 'min_samples_split': 6, 'n_estimators': 131}"
+lightgbm,31.038344161993923,34.814906801804185,-0.3043885093257972,"{'colsample_bytree': 0.6557325817623503, 'learning_rate': 0.061145590061402945, 'max_depth': 6, 'min_child_samples': 22, 'n_estimators': 1683, 'num_leaves': 101, 'subsample': 0.7159005811655073}"

@@ -1,0 +1,24 @@
+{
+  "generated_at": "2025-08-20T21:01:03.164993",
+  "snapshot_hash": "0eeb42a276d14d0f9bc206c2c1a65403",
+  "forecasts": [
+    {
+      "base_timestamp": "2025-08-08 03:00:00",
+      "target_timestamp": "2025-08-09 03:00:00",
+      "horizon": "24h",
+      "prediction": 145.98572953005606
+    },
+    {
+      "base_timestamp": "2025-08-08 03:00:00",
+      "target_timestamp": "2025-08-10 03:00:00",
+      "horizon": "48h",
+      "prediction": 116.7051773071289
+    },
+    {
+      "base_timestamp": "2025-08-08 03:00:00",
+      "target_timestamp": "2025-08-11 03:00:00",
+      "horizon": "72h",
+      "prediction": 115.08650207519531
+    }
+  ]
+}
