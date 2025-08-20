@@ -44,18 +44,7 @@ jobs:
         if [ -f "data_repositories/historical_data/processed/merged_data.csv" ]; then
           echo "✅ Historical data found: data_repositories/historical_data/processed/merged_data.csv"
           echo "📊 Historical data info:"
-          python -c "
-          import pandas as pd
-          try:
-              df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
-              print(f'   Records: {len(df):,}')
-              if 'timestamp' in df.columns:
-                  df['timestamp'] = pd.to_datetime(df['timestamp'])
-                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
-              print(f'   Columns: {len(df.columns)}')
-          except Exception as e:
-              print(f'   Error reading historical data: {e}')
-          "
+          python -c "import pandas as pd; df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv'); print(f'Records: {len(df):,}'); print(f'Columns: {len(df.columns)}'); print(f'Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}' if 'timestamp' in df.columns else 'No timestamp column')"
         else
           echo "⚠️ No historical data found. Will create new dataset."
         fi
@@ -131,18 +120,7 @@ jobs:
         if [ -f "data_repositories/features/phase1_no_leakage_data.csv" ]; then
           echo "✅ Preprocessing completed successfully"
           echo "📊 Preprocessing output info:"
-          python -c "
-          import pandas as pd
-          try:
-              df = pd.read_csv('data_repositories/features/phase1_no_leakage_data.csv')
-              print(f'   Records: {len(df):,}')
-              if 'timestamp' in df.columns:
-                  df['timestamp'] = pd.to_datetime(df['timestamp'])
-                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
-              print(f'   Features: {len(df.columns)}')
-          except Exception as e:
-              print(f'   Error reading preprocessing output: {e}')
-          "
+          python -c "import pandas as pd; df = pd.read_csv('data_repositories/features/phase1_no_leakage_data.csv'); print(f'Records: {len(df):,}'); print(f'Features: {len(df.columns)}'); print(f'Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}' if 'timestamp' in df.columns else 'No timestamp column')"
         else
           echo "❌ Preprocessing output not found"
           exit 1
@@ -158,18 +136,7 @@ jobs:
         if [ -f "data_repositories/features/phase1_fixed_selected_features.csv" ]; then
           echo "✅ Feature selection completed successfully"
           echo "📊 Feature selection output info:"
-          python -c "
-          import pandas as pd
-          try:
-              df = pd.read_csv('data_repositories/features/phase1_fixed_selected_features.csv')
-              print(f'   Records: {len(df):,}')
-              if 'timestamp' in df.columns:
-                  df['timestamp'] = pd.to_datetime(df['timestamp'])
-                  print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
-              print(f'   Selected features: {len(df.columns)}')
-          except Exception as e:
-              print(f'   Error reading feature selection output: {e}')
-          "
+          python -c "import pandas as pd; df = pd.read_csv('data_repositories/features/phase1_fixed_selected_features.csv'); print(f'Records: {len(df):,}'); print(f'Selected features: {len(df.columns)}'); print(f'Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}' if 'timestamp' in df.columns else 'No timestamp column')"
         else
           echo "❌ Feature selection output not found"
           exit 1
