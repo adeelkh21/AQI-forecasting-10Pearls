@@ -1,11 +1,12 @@
 """
-AQI Prediction System - Hourly Data Collection Pipeline
+AQI Prediction System - 2-Hour Data Collection Pipeline
 =============================================
 
-This script collects hourly weather and pollution data for AQI prediction:
+This script collects 2-hour windows of weather and pollution data for AQI prediction:
 - Weather data from Meteostat API
 - Pollution data from OpenWeatherMap API
 - Converts categorical AQI to numerical values
+- Designed to run every 2 hours via GitHub Actions
 
 Author: Data Science Team
 Date: 2024-03-09
@@ -39,7 +40,7 @@ warnings.filterwarnings('ignore')
 PESHAWAR_LAT = 34.0083
 PESHAWAR_LON = 71.5189
 OPENWEATHER_API_KEY = "86e22ef485ce8beb1a30ba654f6c2d5a"
-COLLECTION_DAYS = 1  # Collect last 24 hours for hourly updates
+COLLECTION_HOURS = 2  # Collect last 2 hours for hourly updates
 
 class DataCollector:
     def __init__(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, mode: str = "hourly"):
@@ -66,9 +67,9 @@ class DataCollector:
         os.makedirs(os.path.join(self.data_dir, "processed"), exist_ok=True)
         os.makedirs(os.path.join(self.data_dir, "metadata"), exist_ok=True)
 
-        # If dates not provided, infer an incremental 3-day window from the latest stored data
+        # If dates not provided, infer an incremental 2-hour window from the latest stored data
         if self.start_date is None or self.end_date is None:
-            self._infer_incremental_window(days=3)
+            self._infer_incremental_window(hours=2)
         else:
             # Ensure sensible ordering and cap to now for history endpoints
             if self.end_date < self.start_date:
@@ -78,8 +79,8 @@ class DataCollector:
                 self.end_date = now
 
         print(f"📍 Location: Peshawar ({PESHAWAR_LAT}, {PESHAWAR_LON})")
-        print(f"📅 Period: {self.start_date.date()} to {self.end_date.date()}")
-        print(f"⏰ Duration: {(self.end_date - self.start_date).days} days")
+        print(f"📅 Period: {self.start_date} to {self.end_date}")
+        print(f"⏰ Duration: {(self.end_date - self.start_date).total_seconds() / 3600:.1f} hours")
         print(f"📂 Data Directory: {self.data_dir}")
 
     def fetch_weather_data(self):
@@ -469,6 +470,7 @@ class DataCollector:
         print(f"   - {os.path.join(hist_raw_dir, 'weather_data.csv')}")
         print(f"   - {os.path.join(hist_raw_dir, 'pollution_data.csv')}")
         print(f"   - {os.path.join(hist_proc_dir, 'merged_data.csv')}")
+        print(f"⏰ 2-hour data window collected and merged into historical dataset")
         
         return True
 
@@ -480,13 +482,13 @@ class DataCollector:
         pollution_file = os.path.join(raw_dir, "pollution_data.csv")
         return weather_file, pollution_file
 
-    def _infer_incremental_window(self, days: int = 3) -> None:
-        """Infer start/end dates as the next 'days' window after the latest stored timestamp.
+    def _infer_incremental_window(self, hours: int = 2) -> None:
+        """Infer start/end dates as the next 'hours' window after the latest stored timestamp.
 
         Priority order:
         1) Use master processed merged file's last timestamp
         2) Fall back to raw pollution, then raw weather
-        If no data found, default to the last 'days' from now.
+        If no data found, default to the last 'hours' from now.
         Caps end_date to 'now'.
         """
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -517,13 +519,13 @@ class DataCollector:
         now = datetime.now()
         if latest_ts is None:
             self.end_date = now
-            self.start_date = now - timedelta(days=days)
+            self.start_date = now - timedelta(hours=hours)
             print(f"📅 No existing data found. Collecting default window: {self.start_date} → {self.end_date}")
             return
 
         # Start at the hour after the latest
         start = (pd.to_datetime(latest_ts) + pd.Timedelta(hours=1)).to_pydatetime()
-        end = start + timedelta(days=days)
+        end = start + timedelta(hours=hours)
         if end > now:
             end = now
         self.start_date = start
