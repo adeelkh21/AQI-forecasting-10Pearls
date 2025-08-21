@@ -1,8 +1,8 @@
 {
-    "timestamp": "20250821_122535",
-    "records": 3,
-    "start_date": "2025-08-14 02:00:00",
-    "end_date": "2025-08-14 04:00:00",
+    "timestamp": "20250821_091833",
+    "records": 7,
+    "start_date": "2025-08-15 11:00:00",
+    "end_date": "2025-08-15 17:00:00",
     "missing_values": {
         "timestamp": 0,
         "aqi_category": 0,
