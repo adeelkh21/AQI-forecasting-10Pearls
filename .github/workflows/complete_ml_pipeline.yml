@@ -24,6 +24,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
       
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -67,9 +69,15 @@ jobs:
         
     - name: Commit and push updated models
       run: |
+        set -euo pipefail
+        BRANCH="${GITHUB_REF_NAME:-main}"
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
+        # Ensure we are up to date before committing
+        git fetch origin "$BRANCH"
+        git pull --rebase origin "$BRANCH" || (git rebase --abort && echo "Rebase aborted; continuing")
+
         # Add all updated model files
         git add saved_models/
         
@@ -78,7 +86,7 @@ jobs:
           echo "No changes to commit"
         else
           git commit -m "🤖 Auto-update: ML pipeline models $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          git push
+          git push origin HEAD:"$BRANCH"
           echo "✅ Models committed and pushed"
         fi
         
