@@ -59,6 +59,17 @@ jobs:
         python collect_6hours.py
         
         echo "✅ Data collection completed"
+    
+    - name: Finalize merged dataset (resolve pending file)
+      run: |
+        set -e
+        MASTER="data_repositories/historical_data/processed/merged_data.csv"
+        # If atomic replace failed, a .pending_* file may exist; promote newest to MASTER
+        PENDING=$(ls -1t data_repositories/historical_data/processed/merged_data.csv.pending_* 2>/dev/null | head -n 1 || true)
+        if [ ! -f "$MASTER" ] && [ -n "$PENDING" ]; then
+          echo "⚠️ Merged dataset missing; promoting pending file: $PENDING"
+          mv "$PENDING" "$MASTER"
+        fi
         
     - name: Verify merged dataset
       run: |
@@ -80,8 +91,29 @@ jobs:
               print(f'   Error reading updated dataset: {e}')
           "
         else
-          echo "❌ Merged dataset not found after collection"
-          exit 1
+          echo "❌ Merged dataset not found after collection – checking for pending file..."
+          PENDING=$(ls -1t data_repositories/historical_data/processed/merged_data.csv.pending_* 2>/dev/null | head -n 1 || true)
+          if [ -n "$PENDING" ]; then
+            echo "🔄 Found pending file: $PENDING"
+            mv "$PENDING" "data_repositories/historical_data/processed/merged_data.csv"
+            echo "✅ Promoted pending file to merged_data.csv"
+            python -c "
+            import pandas as pd
+            try:
+                df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
+                print(f'   Total records: {len(df):,}')
+                if 'timestamp' in df.columns:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    print(f'   Date range: {df[\"timestamp\"].min()} to {df[\"timestamp\"].max()}')
+                    print(f'   Latest timestamp: {df[\"timestamp\"].max()}')
+                print(f'   Total columns: {len(df.columns)}')
+            except Exception as e:
+                print(f'   Error reading updated dataset: {e}')
+            "
+          else
+            echo "❌ No pending file found either; failing the pipeline"
+            exit 1
+          fi
         fi
         
     - name: Run data preprocessing (script 02)

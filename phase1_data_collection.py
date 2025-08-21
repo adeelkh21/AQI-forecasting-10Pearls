@@ -96,8 +96,15 @@ class DataCollector:
                 print("   🔄 Attempting to fetch hourly data...")
                 data = Hourly(location, self.start_date, self.end_date)
                 df = data.fetch()
-                
+
                 if df is not None and not df.empty:
+                    # Normalize Meteostat index timezone to UTC and make naive
+                    try:
+                        if getattr(df.index, 'tz', None) is not None:
+                            df.index = df.index.tz_convert('UTC')
+                    except Exception:
+                        pass
+
                     df.reset_index(inplace=True)
                     df.rename(columns={
                         'time': 'timestamp',
@@ -109,6 +116,19 @@ class DataCollector:
                         'wspd': 'wind_speed',
                         'pres': 'pressure'
                     }, inplace=True)
+
+                    # Ensure timestamps are UTC and tz-naive to match pollution data
+                    try:
+                        ts = pd.to_datetime(df['timestamp'])
+                        if getattr(ts.dtype, 'tz', None) is not None:
+                            ts = ts.dt.tz_convert('UTC').dt.tz_localize(None)
+                        else:
+                            # Already naive; keep as-is
+                            ts = ts
+                        df['timestamp'] = ts
+                    except Exception:
+                        pass
+
                     print("   ✅ Hourly data fetched successfully")
                 else:
                     raise Exception("No hourly data received")
@@ -126,6 +146,13 @@ class DataCollector:
                     print("❌ No daily data received either!")
                     return None
                 
+                # Normalize Meteostat index timezone to UTC and make naive
+                try:
+                    if getattr(df.index, 'tz', None) is not None:
+                        df.index = df.index.tz_convert('UTC')
+                except Exception:
+                    pass
+
                 df.reset_index(inplace=True)
                 # Daily data has different column names
                 df.rename(columns={
@@ -136,6 +163,17 @@ class DataCollector:
                     'wspd': 'wind_speed',
                     'pres': 'pressure'
                 }, inplace=True)
+
+                # Ensure timestamps are UTC and tz-naive to match pollution data
+                try:
+                    ts = pd.to_datetime(df['timestamp'])
+                    if getattr(ts.dtype, 'tz', None) is not None:
+                        ts = ts.dt.tz_convert('UTC').dt.tz_localize(None)
+                    else:
+                        ts = ts
+                    df['timestamp'] = ts
+                except Exception:
+                    pass
                 
                 # Handle additional daily data columns
                 if 'tmin' in df.columns and 'tmax' in df.columns:
