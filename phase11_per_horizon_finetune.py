@@ -53,6 +53,10 @@ try:
 except Exception:
     TORCH_AVAILABLE = False
 
+# Allow forcing TCN off via environment variable (e.g., SKIP_TCN=1)
+if os.environ.get('SKIP_TCN') == '1':
+    TORCH_AVAILABLE = False
+
 
 def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(math.sqrt(mean_squared_error(y_true, y_pred)))

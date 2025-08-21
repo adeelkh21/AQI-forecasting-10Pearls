@@ -1,20 +1,25 @@
 {
-    "timestamp": "20250821_083531",
-    "records": 7,
-    "start_date": "2025-08-15 04:00:00",
-    "end_date": "2025-08-15 10:00:00",
+    "timestamp": "20250821_122535",
+    "records": 3,
+    "start_date": "2025-08-14 07:00:00",
+    "end_date": "2025-08-14 09:00:00",
     "missing_values": {
         "timestamp": 0,
         "temperature": 0,
-        "dew_point": 0,
         "relative_humidity": 0,
         "precipitation": 0,
-        "snow": 7,
         "wind_direction": 0,
         "wind_speed": 0,
-        "wpgt": 7,
         "pressure": 0,
-        "tsun": 7,
-        "coco": 0
+        "coco": 0,
+        "temp_flag": 0,
+        "rhum_flag": 0,
+        "prcp_flag": 0,
+        "wdir_flag": 0,
+        "wspd_flag": 0,
+        "pres_flag": 0,
+        "coco_flag": 0,
+        "dew_point": 0,
+        "dwpt_flag": 0
     }
 }

@@ -235,8 +235,25 @@ def maybe_promote(reg: dict, ft_metrics: dict, allow_promotion: bool) -> dict:
         champ = reg['champions'].get(horizon, {})
         champ_rmse = champ.get('rmse')
         champ_path = champ.get('path')
-        # Only consider promotion if we have both metrics and allowed
-        if not allow_promotion or champ_rmse is None or cand_rmse is None:
+        # Only consider promotion if allowed and candidate metric exists
+        # Promote automatically if no champion metric yet (first-time champion)
+        if not allow_promotion or cand_rmse is None:
+            continue
+        if champ_rmse is None:
+            try:
+                if horizon == '24h':
+                    src = os.path.join(SAVED_MODELS, 'catboost_24h_finetuned.txt')
+                elif horizon == '48h':
+                    src = os.path.join(SAVED_MODELS, 'tcn_48h_finetuned.pth')
+                else:
+                    src = os.path.join(SAVED_MODELS, 'tcn_72h_finetuned.pth')
+                if os.path.exists(src) and champ_path:
+                    shutil.copy(src, champ_path)
+                    reg['champions'][horizon]['rmse'] = cand_rmse
+                    reg['champions'][horizon]['r2'] = ft_metrics[k]['R2']
+                    promoted.append((horizon, float('inf')))
+            except Exception as e:
+                print(f"⚠️ First-time promotion failed for {horizon}: {e}")
             continue
         rel_gain = (champ_rmse - cand_rmse) / max(1e-9, champ_rmse)
         if rel_gain >= thr:
@@ -278,7 +295,8 @@ def main():
 
     # Initialize or load registry
     reg = init_registry_if_needed()
-    allow_promotion = features_available() and basic_data_checks() and (reg.get('last_run_at') is not None)
+    # Allow promotion even on first run (no last_run_at) as long as data checks pass
+    allow_promotion = features_available() and basic_data_checks()
 
     # Fine-tune and try promotion
     ft_csv = run_finetune()

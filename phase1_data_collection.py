@@ -352,8 +352,24 @@ class DataCollector:
             # Do not write any additional processed CSVs; master is updated above
 
             print(f"✅ Data processing completed")
-            print(f"📊 Final dataset shape: {df.shape}")
-            print(f"⏰ Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+            print(f"📊 Batch dataset shape: {df.shape}")
+            print(f"⏰ Batch date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+
+            # Show master merged dataset summary to avoid confusion
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                master_dir = os.path.join(current_dir, "data_repositories", "historical_data", "processed")
+                master_file = os.path.join(master_dir, "merged_data.csv")
+                if os.path.exists(master_file):
+                    mdf = pd.read_csv(master_file)
+                    if not mdf.empty and 'timestamp' in mdf.columns:
+                        mdf['timestamp'] = pd.to_datetime(mdf['timestamp'])
+                        print(f"📚 Master dataset records: {len(mdf):,}")
+                        print(f"⏳ Master date range: {mdf['timestamp'].min()} to {mdf['timestamp'].max()}")
+                else:
+                    print("⚠️ Master merged_data.csv not found after update")
+            except Exception as e:
+                print(f"⚠️ Could not read master merged dataset: {e}")
 
             return df
             
