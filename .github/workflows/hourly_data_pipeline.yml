@@ -81,11 +81,7 @@ jobs:
         if [ -f "$MASTER" ]; then
           echo "✅ Merged dataset updated successfully"
           echo "📊 Updated dataset info:"
-          python -c 'import pandas as pd; df=pd.read_csv("data_repositories/historical_data/processed/merged_data.csv"); print(f"   Total records: {len(df):,}"); \
-import pandas as pd; \
-print( (lambda d: f"   Date range: {d.min()} to {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
-print( (lambda d: f"   Latest timestamp: {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
-print(f"   Total columns: {len(df.columns)}")'
+          python -c "import pandas as pd; df=pd.read_csv('data_repositories/historical_data/processed/merged_data.csv'); print('   Total records:', len(df)); has_ts=('timestamp' in df.columns); ts=pd.to_datetime(df['timestamp']) if has_ts else None; print('   Date range:', ts.min(), 'to', ts.max()) if has_ts else None; print('   Latest timestamp:', ts.max()) if has_ts else None; print('   Total columns:', len(df.columns))"
         else
           echo "❌ Merged dataset not found after collection – checking for pending file..."
           LATEST_PENDING=$(find data_repositories/historical_data/processed -maxdepth 1 -type f -name 'merged_data.csv.pending_*' -printf '%T@ %p\n' | sort -nr | awk 'NR==1{print $2}')
@@ -93,11 +89,7 @@ print(f"   Total columns: {len(df.columns)}")'
             echo "🔄 Found pending file: $LATEST_PENDING"
             mv "$LATEST_PENDING" "$MASTER"
             echo "✅ Promoted pending file to merged_data.csv"
-            python -c 'import pandas as pd; df=pd.read_csv("data_repositories/historical_data/processed/merged_data.csv"); print(f"   Total records: {len(df):,}"); \
-import pandas as pd; \
-print( (lambda d: f"   Date range: {d.min()} to {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
-print( (lambda d: f"   Latest timestamp: {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
-print(f"   Total columns: {len(df.columns)}")'
+            python -c "import pandas as pd; df=pd.read_csv('data_repositories/historical_data/processed/merged_data.csv'); print('   Total records:', len(df)); has_ts=('timestamp' in df.columns); ts=pd.to_datetime(df['timestamp']) if has_ts else None; print('   Date range:', ts.min(), 'to', ts.max()) if has_ts else None; print('   Latest timestamp:', ts.max()) if has_ts else None; print('   Total columns:', len(df.columns))"
           else
             echo "❌ No pending file found either; failing the pipeline"
             exit 1
