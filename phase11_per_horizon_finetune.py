@@ -27,7 +27,7 @@ import glob
 import json
 import math
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -221,7 +221,7 @@ class PerHorizonFineTuner:
         except Exception:
             pass
 
-    def split(self, X: pd.DataFrame, y: pd.Series | pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series | pd.DataFrame, pd.Series | pd.DataFrame, pd.Series | pd.DataFrame]:
+    def split(self, X: pd.DataFrame, y: Union[pd.Series, pd.DataFrame]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Union[pd.Series, pd.DataFrame], Union[pd.Series, pd.DataFrame], Union[pd.Series, pd.DataFrame]]:
         n = len(X)
         n_tr = int(0.6 * n)
         n_va = int(0.2 * n)
@@ -282,7 +282,7 @@ class PerHorizonFineTuner:
         return metrics
 
     # ---------------- TCN utils ----------------
-    def _latest_checkpoint(self, pattern: str) -> str | None:
+    def _latest_checkpoint(self, pattern: str) -> Optional[str]:
         paths = glob.glob(pattern)
         if not paths:
             return None

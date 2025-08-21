@@ -35,7 +35,7 @@ import json
 import hashlib
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 warnings.filterwarnings('ignore')
 
@@ -164,7 +164,7 @@ def _snapshot_hash(values: np.ndarray) -> str:
     return m.hexdigest()
 
 
-def _latest(path_glob: str) -> str | None:
+def _latest(path_glob: str) -> Optional[str]:
     matches = glob.glob(path_glob)
     if not matches:
         return None

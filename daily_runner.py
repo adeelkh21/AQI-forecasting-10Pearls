@@ -20,6 +20,7 @@ import os
 import json
 import shutil
 import subprocess
+from typing import Optional
 from datetime import datetime
 
 
@@ -195,7 +196,7 @@ def init_registry_if_needed() -> dict:
     return reg
 
 
-def run_finetune() -> str | None:
+def run_finetune() -> Optional[str]:
     code = run_cmd(['python', 'phase11_per_horizon_finetune.py'])
     if code != 0:
         print("❌ Fine-tune step failed")
