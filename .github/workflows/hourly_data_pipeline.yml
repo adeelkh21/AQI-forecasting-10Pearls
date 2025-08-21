@@ -81,19 +81,11 @@ jobs:
         if [ -f "$MASTER" ]; then
           echo "✅ Merged dataset updated successfully"
           echo "📊 Updated dataset info:"
-          python << 'PY'
-          import pandas as pd
-          try:
-              df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
-              print(f'   Total records: {len(df):,}')
-              if 'timestamp' in df.columns:
-                  df['timestamp'] = pd.to_datetime(df['timestamp'])
-                  print(f'   Date range: {df["timestamp"].min()} to {df["timestamp"].max()}')
-                  print(f'   Latest timestamp: {df["timestamp"].max()}')
-              print(f'   Total columns: {len(df.columns)}')
-          except Exception as e:
-              print(f'   Error reading updated dataset: {e}')
-          PY
+          python -c 'import pandas as pd; df=pd.read_csv("data_repositories/historical_data/processed/merged_data.csv"); print(f"   Total records: {len(df):,}"); \
+import pandas as pd; \
+print( (lambda d: f"   Date range: {d.min()} to {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
+print( (lambda d: f"   Latest timestamp: {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
+print(f"   Total columns: {len(df.columns)}")'
         else
           echo "❌ Merged dataset not found after collection – checking for pending file..."
           LATEST_PENDING=$(find data_repositories/historical_data/processed -maxdepth 1 -type f -name 'merged_data.csv.pending_*' -printf '%T@ %p\n' | sort -nr | awk 'NR==1{print $2}')
@@ -101,19 +93,11 @@ jobs:
             echo "🔄 Found pending file: $LATEST_PENDING"
             mv "$LATEST_PENDING" "$MASTER"
             echo "✅ Promoted pending file to merged_data.csv"
-            python << 'PY'
-            import pandas as pd
-            try:
-                df = pd.read_csv('data_repositories/historical_data/processed/merged_data.csv')
-                print(f'   Total records: {len(df):,}')
-                if 'timestamp' in df.columns:
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
-                    print(f'   Date range: {df["timestamp"].min()} to {df["timestamp"].max()}')
-                    print(f'   Latest timestamp: {df["timestamp"].max()}')
-                print(f'   Total columns: {len(df.columns)}')
-            except Exception as e:
-                print(f'   Error reading updated dataset: {e}')
-            PY
+            python -c 'import pandas as pd; df=pd.read_csv("data_repositories/historical_data/processed/merged_data.csv"); print(f"   Total records: {len(df):,}"); \
+import pandas as pd; \
+print( (lambda d: f"   Date range: {d.min()} to {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
+print( (lambda d: f"   Latest timestamp: {d.max()}") (pd.to_datetime(df["timestamp"])) ) if "timestamp" in df.columns else None; \
+print(f"   Total columns: {len(df.columns)}")'
           else
             echo "❌ No pending file found either; failing the pipeline"
             exit 1
