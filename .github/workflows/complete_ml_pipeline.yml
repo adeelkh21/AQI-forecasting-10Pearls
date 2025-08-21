@@ -76,7 +76,8 @@ jobs:
         
         # Ensure we are up to date before committing
         git fetch origin "$BRANCH"
-        git pull --rebase origin "$BRANCH" || (git rebase --abort && echo "Rebase aborted; continuing")
+        # Autostash local changes during rebase to avoid failure on unstaged files
+        git -c rebase.autostash=true pull --rebase origin "$BRANCH" || (git rebase --abort || true)
 
         # Add all updated model files
         git add saved_models/
