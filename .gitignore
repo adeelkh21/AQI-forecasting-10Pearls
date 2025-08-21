@@ -1,3 +1,13 @@
+# Temp and pending CSVs created by atomic writes
+data_repositories/historical_data/processed/.merged_data.csv.tmp_*
+data_repositories/historical_data/processed/merged_data.csv.pending_*
+data_repositories/hourly_data/processed/.merged_data.csv.tmp_*
+data_repositories/hourly_data/processed/merged_data.csv.pending_*
+
+# Generated artifacts
+saved_models/forecasts/
+saved_models/reports/
+catboost_info/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
