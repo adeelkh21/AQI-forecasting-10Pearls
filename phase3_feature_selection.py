@@ -77,7 +77,7 @@ class FixedFeatureSelector:
         if not os.path.exists(self.input_path):
             print(f"❌ Input file not found: {self.input_path}")
             print(f"💡 This usually means the data preprocessing step hasn't run yet.")
-            print(f"💡 Please run 02_data_preprocessing.py first to create the required data.")
+            print(f"💡 Please run phase2_data_preprocessing.py first to create the required data.")
             
             # Check what preprocessing files exist
             preprocessing_dir = "data_repositories/features/"

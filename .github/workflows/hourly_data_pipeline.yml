@@ -49,41 +49,15 @@ jobs:
           echo "⚠️ No historical data found. Will create new dataset."
         fi
         
-    - name: Create 6-hour collection script
+    - name: Collect new data (smart collection)
       run: |
-        echo "📝 Creating 6-hour data collection script..."
-        echo 'import os' > collect_6hours.py
-        echo 'import sys' >> collect_6hours.py
-        echo 'sys.path.append(".")' >> collect_6hours.py
-        echo 'from datetime import datetime, timedelta' >> collect_6hours.py
-        echo '' >> collect_6hours.py
-        echo '# Import the DataCollector class' >> collect_6hours.py
-        echo 'from 01_data_collection import DataCollector' >> collect_6hours.py
-        echo '' >> collect_6hours.py
-        echo '# Calculate 6 hours ago from now' >> collect_6hours.py
-        echo 'now = datetime.now()' >> collect_6hours.py
-        echo 'start_time = now - timedelta(hours=6)' >> collect_6hours.py
-        echo '' >> collect_6hours.py
-        echo 'print(f"🕐 Collection window: {start_time} to {now}")' >> collect_6hours.py
-        echo 'print(f"⏰ Duration: 6 hours")' >> collect_6hours.py
-        echo '' >> collect_6hours.py
-        echo '# Create collector with specific time window' >> collect_6hours.py
-        echo 'collector = DataCollector(start_date=start_time, end_date=now, mode="hourly")' >> collect_6hours.py
-        echo 'success = collector.run_pipeline()' >> collect_6hours.py
-        echo '' >> collect_6hours.py
-        echo 'if success:' >> collect_6hours.py
-        echo '    print("✅ 6-hour data collection completed successfully")' >> collect_6hours.py
-        echo 'else:' >> collect_6hours.py
-        echo '    print("❌ 6-hour data collection failed")' >> collect_6hours.py
-        echo '    sys.exit(1)' >> collect_6hours.py
-        echo "✅ Script created successfully"
-        
-    - name: Collect new data (past 6 hours)
-      run: |
-        echo "🔄 Starting data collection (past 6 hours)..."
+        echo "🔄 Starting smart data collection..."
         echo "📅 Current time: $(date -u)"
-        echo "⏰ Collecting data for past 6 hours..."
+        echo "⏰ Automatically detecting last timestamp and collecting new data..."
+        
+        # Run the smart data collection script
         python collect_6hours.py
+        
         echo "✅ Data collection completed"
         
     - name: Verify merged dataset
@@ -114,7 +88,7 @@ jobs:
       run: |
         echo "🔄 Starting data preprocessing (script 02)..."
         echo "📁 Input: data_repositories/historical_data/processed/merged_data.csv"
-        python 02_data_preprocessing.py
+        python phase2_data_preprocessing.py
         
         # Verify output
         if [ -f "data_repositories/features/phase1_no_leakage_data.csv" ]; then
@@ -130,7 +104,7 @@ jobs:
       run: |
         echo "🔄 Starting feature selection (script 03)..."
         echo "📁 Input: data_repositories/features/phase1_no_leakage_data.csv"
-        python 03_feature_selection.py
+        python phase3_feature_selection.py
         
         # Verify output
         if [ -f "data_repositories/features/phase1_fixed_selected_features.csv" ]; then
@@ -180,7 +154,7 @@ jobs:
         echo "🎉 HOURLY DATA PIPELINE COMPLETED SUCCESSFULLY!"
         echo "=================================================================="
         echo "📊 Pipeline executed at: $(date -u)"
-        echo "🔄 Data collection: 6 hours of new data collected"
+        echo "🔄 Data collection: Smart collection from last timestamp"
         echo "📁 Data merged into: data_repositories/historical_data/processed/merged_data.csv"
         echo "🔧 Script 02 executed: Data preprocessing completed"
         echo "🎯 Script 03 executed: Feature selection completed"

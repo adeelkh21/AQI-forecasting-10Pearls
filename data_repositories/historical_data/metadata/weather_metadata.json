@@ -1,20 +1,20 @@
 {
-    "timestamp": "20250820_234415",
-    "records": 73,
-    "start_date": "2025-08-11 20:00:00",
-    "end_date": "2025-08-14 20:00:00",
+    "timestamp": "20250821_113148",
+    "records": 7,
+    "start_date": "2025-08-14 00:00:00",
+    "end_date": "2025-08-14 06:00:00",
     "missing_values": {
         "timestamp": 0,
         "temperature": 0,
         "dew_point": 0,
         "relative_humidity": 0,
         "precipitation": 0,
-        "snow": 73,
+        "snow": 7,
         "wind_direction": 0,
         "wind_speed": 0,
-        "wpgt": 73,
+        "wpgt": 7,
         "pressure": 0,
-        "tsun": 73,
+        "tsun": 7,
         "coco": 0
     }
 }

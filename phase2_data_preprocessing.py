@@ -187,7 +187,7 @@ class FixedNoLeakagePreprocessor:
         print("-" * 40)
         
         if not os.path.exists(self.input_path):
-            # Fallback to merged historical data produced by 01_data_collection.py in historical mode
+            # Fallback to merged historical data produced by phase1_data_collection.py in historical mode
             fallback_path = "data_repositories/historical_data/processed/merged_data.csv"
             if os.path.exists(fallback_path):
                 print(f"⚠️ Input file not found at default path. Using fallback: {fallback_path}")

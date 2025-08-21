@@ -7,7 +7,7 @@ What this does (idempotent, safe by default):
 - Ensures required artifacts and directories exist
 - Optionally refreshes features (calls preprocessing/feature selection if missing)
 - Runs basic data quality checks
-- Triggers per-horizon fine-tuning (24h CatBoost, 48h/72h TCN) via 11_per_horizon_finetune.py
+- Triggers per-horizon fine-tuning (24h CatBoost, 48h/72h TCN) via phase11_per_horizon_finetune.py
 - Applies a promotion gate (do-no-harm) using a simple registry in saved_models/registry/models.json
 - Generates forecasts via forecast.py
 
@@ -77,8 +77,8 @@ def refresh_features_if_missing():
         return
     print("⚠️ Features missing – attempting to regenerate via preprocessing")
     # Try to run preprocessing then feature selection, ignoring failures gracefully
-    run_cmd(['python', '02_data_preprocessing.py'])
-    run_cmd(['python', '03_feature_selection.py'])
+    run_cmd(['python', 'phase2_data_preprocessing.py'])
+    run_cmd(['python', 'phase3_feature_selection.py'])
     if features_available():
         print("✅ Features regenerated")
     else:
@@ -196,7 +196,7 @@ def init_registry_if_needed() -> dict:
 
 
 def run_finetune() -> str | None:
-    code = run_cmd(['python', '11_per_horizon_finetune.py'])
+    code = run_cmd(['python', 'phase11_per_horizon_finetune.py'])
     if code != 0:
         print("❌ Fine-tune step failed")
         return None
