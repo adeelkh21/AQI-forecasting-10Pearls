@@ -14,6 +14,9 @@ on:
       - 'phase11_per_horizon_finetune.py'
       - 'daily_runner.py'
 
+permissions:
+  contents: write
+
 jobs:
   ml-pipeline:
     runs-on: ubuntu-latest
