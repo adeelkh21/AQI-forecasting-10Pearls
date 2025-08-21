@@ -1,14 +1,14 @@
 {
   "created_at": "2025-08-20T15:49:20.784641",
-  "last_run_at": "2025-08-21T10:25:53.849167",
+  "last_run_at": "2025-08-21T10:39:50.525989",
   "thresholds": {
     "min_rmse_rel_improvement_daily": 0.02
   },
   "champions": {
     "24h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\catboost_24h.txt",
-      "rmse": 22.639309801625323,
-      "r2": 0.4185218333063437
+      "rmse": 22.104704348297552,
+      "r2": 0.4445272293675927
     },
     "48h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\tcn_48h.pth",
@@ -17,8 +17,8 @@
     },
     "72h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\tcn_72h.pth",
-      "rmse": 34.26994066244954,
-      "r2": -0.4493913650512695
+      "rmse": 31.349282716761937,
+      "r2": -0.2669283151626587
     }
   }
 }
