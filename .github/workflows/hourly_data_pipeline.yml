@@ -62,13 +62,15 @@ jobs:
     
     - name: Finalize merged dataset (resolve pending file)
       run: |
-        set -e
+        set -euo pipefail
         MASTER="data_repositories/historical_data/processed/merged_data.csv"
-        # If atomic replace failed, a .pending_* file may exist; promote newest to MASTER
-        PENDING=$(ls -1t data_repositories/historical_data/processed/merged_data.csv.pending_* 2>/dev/null | head -n 1 || true)
-        if [ ! -f "$MASTER" ] && [ -n "$PENDING" ]; then
-          echo "⚠️ Merged dataset missing; promoting pending file: $PENDING"
-          mv "$PENDING" "$MASTER"
+        # Find newest pending file (if any)
+        LATEST_PENDING=$(find data_repositories/historical_data/processed -maxdepth 1 -type f -name 'merged_data.csv.pending_*' -printf '%T@ %p\n' | sort -nr | awk 'NR==1{print $2}')
+        if [ ! -f "$MASTER" ] && [ -n "${LATEST_PENDING:-}" ]; then
+          echo "⚠️ Merged dataset missing; promoting pending file: $LATEST_PENDING"
+          mv "$LATEST_PENDING" "$MASTER"
+        else
+          echo "ℹ️ No promotion needed (master present or no pending file)"
         fi
         
     - name: Verify merged dataset
