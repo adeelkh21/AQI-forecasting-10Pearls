@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
 from datetime import datetime, timedelta
 import time
 import json
@@ -18,29 +19,52 @@ st.set_page_config(
 # Custom CSS for elegant styling
 st.markdown("""
 <style>
+    /* Global background to match big block styling */
+    html, body, .stApp {
+        background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%) !important;
+    }
+    /* Make the main container transparent over the page background */
+    .block-container {
+        background: transparent !important;
+        padding-top: 1rem;
+    }
+    /* Sidebar background harmonized */
+    [data-testid="stSidebar"] {
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        width: 18rem !important;
+        min-width: 18rem !important;
+        background: rgba(255,255,255,0.03) !important;
+        border-right: 1px solid rgba(255,255,255,0.07);
+    }
+    /* Sidebar text colors */
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label {
+        color: #ffffff !important;
+    }
+    /* Expander header titles */
+    [data-testid="stExpander"] summary {
+        color: #ffffff !important;
+    }
     /* Main styling */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2.5rem;
-        border-radius: 20px;
-        margin-bottom: 2rem;
-        color: white;
+        background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%);
+        padding: 2.0rem;
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        color: #e8ecf1;
         text-align: center;
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255,255,255,0.07);
         position: relative;
         overflow: hidden;
     }
     
-    .main-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-        opacity: 0.3;
-    }
+    .main-header::before { display: none; }
     
     .main-header h1 {
         font-size: 2.5rem;
@@ -55,32 +79,7 @@ st.markdown("""
         font-weight: 300;
     }
     
-    .metric-card {
-        background: white;
-        padding: 1.8rem;
-        border-radius: 16px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-        border-left: 5px solid #667eea;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
-    }
-    
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-    }
+
     
     .status-indicator {
         display: inline-block;
@@ -120,21 +119,22 @@ st.markdown("""
     }
     
     .data-section {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 2rem;
-        border-radius: 16px;
-        margin: 1.5rem 0;
-        border: 1px solid #e9ecef;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        background: rgba(255,255,255,0.03);
+        padding: 1.2rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border: 1px solid rgba(255,255,255,0.07);
+        box-shadow: none;
+        color: #e0e6ee;
     }
     
     .chart-container {
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-        margin: 1.5rem 0;
-        border: 1px solid #f1f3f4;
+        background: rgba(255,255,255,0.03);
+        padding: 1.2rem;
+        border-radius: 12px;
+        box-shadow: none;
+        margin: 1rem 0;
+        border: 1px solid rgba(255,255,255,0.07);
     }
     
     .sidebar-section {
@@ -245,32 +245,33 @@ st.markdown("""
     }
     
     .stat-item {
-        background: white;
+        background: rgba(255,255,255,0.03);
         padding: 1rem;
         border-radius: 10px;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        border: 1px solid #f1f3f4;
+        box-shadow: none;
+        border: 1px solid rgba(255,255,255,0.07);
+        color: #ffffff;
     }
     
     .stat-value {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #667eea;
+        color: #f2f6ff;
         margin-bottom: 0.5rem;
     }
     
     .stat-label {
         font-size: 0.8rem;
-        color: #7f8c8d;
+        color: #a9b4c2;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
     
-    /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* Ensure Streamlit default elements are visible */
+    #MainMenu {visibility: visible !important;}
+    footer {visibility: visible !important;}
+    header {visibility: visible !important;}
     
     /* Custom scrollbar */
     ::-webkit-scrollbar {
@@ -289,6 +290,83 @@ st.markdown("""
     
     ::-webkit-scrollbar-thumb:hover {
         background: #764ba2;
+    }
+    
+    /* Enhanced metric card styling for pollutants and weather */
+    .metric-card {
+        background: linear-gradient(135deg, #262730 0%, #2a2d3a 100%);
+        border: 1px solid #4c78a8;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 8px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        border-color: #5a9bd4;
+    }
+    
+    /* Enhanced section headers for better visual hierarchy */
+    .section-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        margin: 24px 0 16px 0;
+        font-size: 1.4rem;
+        font-weight: 600;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Buttons match background theme */
+    .stButton > button {
+        color: #2c3e50;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: none !important;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #202633 0%, #2a303c 100%) !important;
+        transform: translateY(-1px);
+        border-color: rgba(255,255,255,0.12) !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
+    }
+    
+    /* Enhanced sidebar styling for better visibility */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #1e1e2e 0%, #2a2d3a 100%);
+        border-right: 2px solid #4c78a8;
+    }
+    
+    .css-1d391kg .css-1lcbmhc {
+        color: #fafafa !important;
+        font-weight: 600;
+    }
+    
+    /* Improved pollutant and weather data organization */
+    .pollutant-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+        border: 1px solid #dee2e6;
+    }
+    
+    .pollutant-section h4 {
+        color: #2c3e50;
+        margin-bottom: 12px;
+        font-weight: 600;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -320,6 +398,16 @@ def get_aqi_category(aqi_value: float) -> tuple:
         return "Very Unhealthy", "#8800ff", "🟣"
     else:
         return "Hazardous", "#800000", "⚫"
+
+def fmt(value: Any, decimals: int = 2) -> Any:
+    """Format numeric values to a fixed number of decimals; pass through non-numeric."""
+    try:
+        if isinstance(value, bool):
+            return value
+        num = float(value)
+        return f"{num:.{decimals}f}"
+    except Exception:
+        return value
 
 def fetch_api_data(endpoint: str, params: dict = None, method: str = "GET") -> Optional[Dict[str, Any]]:
     """Fetch data from API with rate limiting and error handling."""
@@ -377,18 +465,7 @@ def get_backend_health_status() -> str:
     except:
         return "offline"
 
-def display_metric_card(title: str, value: Any, unit: str = "", icon: str = "", color: str = "#667eea"):
-    """Display a metric card with consistent styling."""
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-            <span style="font-size: 1.5rem; margin-right: 0.5rem;">{icon}</span>
-            <span style="font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px;">{title}</span>
-        </div>
-        <div class="metric-value" style="color: {color};">{value}</div>
-        {f'<div class="metric-label">{unit}</div>' if unit else ''}
-    </div>
-    """, unsafe_allow_html=True)
+
 
 def main():
     # Header
@@ -443,9 +520,15 @@ def main():
         with col1:
             if st.button("🔄 Collect", use_container_width=True, help="Collect new air quality data"):
                 st.info("Starting data collection...")
-                result = fetch_api_data("/collect")
-                if result and result.get("success"):
-                    st.success(f"✅ Collected {result.get('rows_collected', 0)} new data points")
+                result = fetch_api_data("/collect", method="POST")
+                if result is not None:
+                    rows_collected = result.get('rows_collected', 0)
+                    rows_added = result.get('rows_added', 0)
+                    last_ts = result.get('last_timestamp')
+                    message = f"✅ Collected {rows_collected} rows, added {rows_added}"
+                    if last_ts:
+                        message += f" | Last: {last_ts}"
+                    st.success(message)
                 else:
                     st.error("❌ Data collection failed")
         
@@ -516,89 +599,163 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Main content area
-    col1, col2, col3 = st.columns(3)
+    # Main content area - Organized Data Dashboard
+    st.markdown('<div class="section-header">📊 Current Environmental Data Dashboard</div>', unsafe_allow_html=True)
     
-    # Current AQI
-    with col1:
-        st.markdown("### 🌡️ Current AQI")
-        aqi_data = fetch_api_data("/aqi/latest")
+    # Fetch all data
+    aqi_data = fetch_api_data("/aqi/latest")
+    weather_data = fetch_api_data("/weather/latest")
+    pollutant_data = fetch_api_data("/pollutants/latest")
+    
+    # Create organized data table
+    if aqi_data or weather_data or pollutant_data:
+        # Prepare data for the table
+        data_rows = []
+        
+        # AQI Section
         if aqi_data:
             aqi_value = aqi_data.get('aqi_24h', 0)
             category, color, icon = get_aqi_category(aqi_value)
-            
-            display_metric_card(
-                "AQI 24h",
-                f"{icon} {aqi_value}",
-                category,
-                "🌡️",
-                color
-            )
+            data_rows.append({
+                "Category": "🌡️ Air Quality Index",
+                "Parameter": "AQI 24h",
+                "Value": f"{fmt(aqi_value)}",
+                "Unit": f"{icon} {category}",
+                "Status": "🟢 Active"
+            })
             
             if aqi_data.get('timestamp'):
-                st.markdown(f"""
-                <div class="timestamp">
-                    📅 {datetime.fromisoformat(aqi_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')}
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="warning-box">⚠️ Unable to fetch AQI data</div>', unsafe_allow_html=True)
-    
-    # Current Weather
-    with col2:
-        st.markdown("### 🌤️ Current Weather")
-        weather_data = fetch_api_data("/weather/latest")
+                data_rows.append({
+                    "Category": "📅 Data Timestamp",
+                    "Parameter": "Last Update",
+                    "Value": datetime.fromisoformat(aqi_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S'),
+                    "Unit": "Local Time",
+                    "Status": "🟢 Current"
+                })
+        
+        # Weather Section
         if weather_data:
-            temp = weather_data.get('temperature', 'N/A')
-            humidity = weather_data.get('humidity', 'N/A')
-            wind_speed = weather_data.get('wind_speed', 'N/A')
+            weather_params = [
+                ("🌡️ Temperature", "temperature", "°C", "Celsius"),
+                ("💧 Humidity", "relative_humidity", "%", "Relative"),
+                ("💨 Wind Speed", "wind_speed", "m/s", "Meters/Second"),
+                ("🌪️ Pressure", "pressure", "hPa", "Hectopascals"),
+                ("💦 Dew Point", "dew_point", "°C", "Celsius"),
+                ("🧭 Wind Direction", "wind_direction", "°", "Degrees"),
+                ("🌧️ Precipitation", "precipitation", "mm", "Millimeters")
+            ]
             
-            display_metric_card("Temperature", f"{temp}°C", "Celsius", "🌡️")
-            display_metric_card("Humidity", f"{humidity}%", "Relative", "💧")
-            display_metric_card("Wind Speed", f"{wind_speed} m/s", "Meters/Second", "💨")
+            for icon_name, param, unit, description in weather_params:
+                value = weather_data.get(param, 'N/A')
+                if value != 'N/A':
+                    data_rows.append({
+                        "Category": icon_name,
+                        "Parameter": description,
+                        "Value": f"{fmt(value)}",
+                        "Unit": unit,
+                        "Status": "🟢 Active"
+                    })
+        
+        # Pollutants Section
+        if pollutant_data:
+            pollutant_params = [
+                ("🌫️ PM2.5", "pm2_5", "μg/m³", "Fine Particles"),
+                ("🌫️ PM10", "pm10", "μg/m³", "Coarse Particles"),
+                ("☁️ Ozone", "o3_ppb", "ppb", "Ozone"),
+                ("🚗 NO₂", "no2_ppb", "ppb", "Nitrogen Dioxide"),
+                ("🔥 CO", "co_ppm", "ppm", "Carbon Monoxide"),
+                ("🏭 SO₂", "so2_ppb", "ppb", "Sulfur Dioxide"),
+                ("🧪 NH₃", "nh3", "μg/m³", "Ammonia")
+            ]
             
-            if weather_data.get('timestamp'):
-                st.markdown(f"""
-                <div class="timestamp">
-                    📅 {datetime.fromisoformat(weather_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')}
+            for icon_name, param, unit, description in pollutant_params:
+                value = pollutant_data.get(param, 'N/A')
+                if value != 'N/A':
+                    data_rows.append({
+                        "Category": icon_name,
+                        "Parameter": description,
+                        "Value": f"{fmt(value)}",
+                        "Unit": unit,
+                        "Status": "🟢 Active"
+                    })
+        
+        # Single elegant big block
+        st.markdown("""
+        <style>
+        /* Match app theme: subtle indigo/purple gradient and soft borders */
+        .big-block { 
+          background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 16px; padding: 18px 20px; 
+          box-shadow: 0 10px 30px rgba(0,0,0,.25);
+        }
+        .bb-header { 
+          display:flex; align-items:center; justify-content:space-between; gap:16px; 
+          border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom:12px; margin-bottom:14px; 
+        }
+        .bb-title { display:flex; align-items:center; gap:10px; color:#e8ecf1; font-weight:700; letter-spacing:.3px; }
+        .bb-aqi { font-size:2rem; font-weight:800; }
+        .bb-aqi .cat { font-size:.9rem; color:#c0c7d1; margin-left:8px; }
+        .bb-body { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+        .bb-section { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:14px; }
+        .bb-section h4 { margin:0 0 10px 0; font-size:1rem; color:#e0e6ee; font-weight:700; }
+        .kv-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
+        .kv { background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px; }
+        .kv .k { color:#a9b4c2; font-size:.8rem; margin-bottom:4px; }
+        .kv .v { color:#f2f6ff; font-size:1.05rem; font-weight:700; }
+        @media (max-width: 900px) { .bb-body { grid-template-columns: 1fr; } }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Build header
+        if aqi_data:
+            aqi_value = aqi_data.get('aqi_24h', 0)
+            category, color, icon = get_aqi_category(aqi_value)
+            ts_html = ""
+            if aqi_data.get('timestamp'):
+                ts_html = f"<div class=\"kv\"><div class=\"k\">Last Update</div><div class=\"v\">{datetime.fromisoformat(aqi_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')}</div></div>"
+            st.markdown(f"""
+            <div class="big-block">
+              <div class="bb-header">
+                <div class="bb-title">🌤️ AQI Forecasting Dashboard</div>
+                <div class="bb-aqi" style="color:{color};">{fmt(aqi_value)}<span class="cat">{icon} {category}</span></div>
+              </div>
+              <div class="bb-body">
+                <div class="bb-section">
+                  <h4>🌤️ Weather</h4>
+                  <div class="kv-grid">
+                    {f'<div class="kv"><div class="k">Temperature</div><div class="v">{fmt(weather_data.get("temperature"))}°C</div></div>' if weather_data and weather_data.get('temperature') is not None else ''}
+                    {f'<div class="kv"><div class="k">Humidity</div><div class="v">{fmt(weather_data.get("relative_humidity"))}%</div></div>' if weather_data and weather_data.get('relative_humidity') is not None else ''}
+                    {f'<div class="kv"><div class="k">Wind Speed</div><div class="v">{fmt(weather_data.get("wind_speed"))} m/s</div></div>' if weather_data and weather_data.get('wind_speed') is not None else ''}
+                    {f'<div class="kv"><div class="k">Wind Direction</div><div class="v">{fmt(weather_data.get("wind_direction"))}°</div></div>' if weather_data and weather_data.get('wind_direction') is not None else ''}
+                    {f'<div class="kv"><div class="k">Pressure</div><div class="v">{fmt(weather_data.get("pressure"))} hPa</div></div>' if weather_data and weather_data.get('pressure') is not None else ''}
+                    {f'<div class="kv"><div class="k">Dew Point</div><div class="v">{fmt(weather_data.get("dew_point"))}°C</div></div>' if weather_data and weather_data.get('dew_point') is not None else ''}
+                    {f'<div class="kv"><div class="k">Precipitation</div><div class="v">{fmt(weather_data.get("precipitation"))} mm</div></div>' if weather_data and weather_data.get('precipitation') is not None else ''}
+                    {ts_html}
+                  </div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="bb-section">
+                  <h4>🏭 Pollutants</h4>
+                  <div class="kv-grid">
+                    {f'<div class="kv"><div class="k">PM2.5</div><div class="v">{fmt(pollutant_data.get("pm2_5"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('pm2_5') is not None else ''}
+                    {f'<div class="kv"><div class="k">PM10</div><div class="v">{fmt(pollutant_data.get("pm10"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('pm10') is not None else ''}
+                    {f'<div class="kv"><div class="k">O₃</div><div class="v">{fmt(pollutant_data.get("o3_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('o3_ppb') is not None else ''}
+                    {f'<div class="kv"><div class="k">NO₂</div><div class="v">{fmt(pollutant_data.get("no2_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('no2_ppb') is not None else ''}
+                    {f'<div class="kv"><div class="k">CO</div><div class="v">{fmt(pollutant_data.get("co_ppm"))} ppm</div></div>' if pollutant_data and pollutant_data.get('co_ppm') is not None else ''}
+                    {f'<div class="kv"><div class="k">SO₂</div><div class="v">{fmt(pollutant_data.get("so2_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('so2_ppb') is not None else ''}
+                    {f'<div class="kv"><div class="k">NH₃</div><div class="v">{fmt(pollutant_data.get("nh3"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('nh3') is not None else ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.markdown('<div class="warning-box">⚠️ Unable to fetch weather data</div>', unsafe_allow_html=True)
-    
-    # System Health
-    with col3:
-        st.markdown("### 🏥 System Health")
-        health_data = fetch_api_data("/health")
-        if health_data:
-            health_score = health_data.get('health_score', 0)
-            status = health_data.get('status', 'unknown')
-            
-            # Health color based on score
-            if health_score >= 75:
-                health_color = "#00ff88"
-                health_icon = "🟢"
-            elif health_score >= 50:
-                health_color = "#ffa502"
-                health_icon = "🟡"
-            else:
-                health_color = "#ff4757"
-                health_icon = "🔴"
-            
-            display_metric_card("Health Score", f"{health_icon} {health_score}%", status, "🏥", health_color)
-            
-            # Critical files status
-            critical_files = health_data.get('critical_files', {})
-            if critical_files:
-                st.markdown("**Critical Files:**")
-                for file_name, exists in critical_files.items():
-                    status_icon = "✅" if exists else "❌"
-                    st.write(f"{status_icon} {file_name.replace('_', ' ').title()}")
-        else:
-            st.markdown('<div class="warning-box">⚠️ Unable to fetch health data</div>', unsafe_allow_html=True)
+            st.error("❌ Unable to fetch environmental data")
+    else:
+        st.error("❌ Unable to fetch environmental data")
     
     # AQI History Chart
-    st.markdown('<div class="section-header">📈 AQI Historical Trends</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header" style="color:#ffffff;">📈 AQI Historical Trends (Last 72 Hours)</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns([3, 1])
     
@@ -667,8 +824,8 @@ def main():
                         
                         # Data summary
                         st.markdown(f"""
-                        <div class="data-section">
-                            <h4>📊 Data Summary</h4>
+                        <div class="data-section" style="color:#ffffff;">
+                            <h4 style="color:#ffffff;">📊 Data Summary</h4>
                             <div class="stats-grid">
                                 <div class="stat-item">
                                     <div class="stat-value">{len(data)}</div>
@@ -683,7 +840,7 @@ def main():
                                     <div class="stat-label">End Date</div>
                                 </div>
                                 <div class="stat-item">
-                                    <div class="stat-value">{aqi_values[-1] if aqi_values else 'N/A'}</div>
+                                    <div class="stat-value">{(lambda v: f"{v:.2f}")(aqi_values[-1]) if aqi_values else 'N/A'}</div>
                                     <div class="stat-label">Current AQI</div>
                                 </div>
                             </div>
@@ -697,7 +854,7 @@ def main():
                 st.markdown('<div class="warning-box">⚠️ Unable to fetch AQI history data - check backend connection</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("### 📊 Quick Stats")
+        st.markdown('<h3 style="color:#ffffff; margin-top:0;">📊 Quick Stats</h3>', unsafe_allow_html=True)
         
         if aqi_history and aqi_history.get('data'):
             data = aqi_history['data']
@@ -712,21 +869,21 @@ def main():
                     
                     st.markdown(f"""
                     <div class="stat-item">
-                        <div class="stat-value">{avg_aqi:.1f}</div>
+                        <div class="stat-value">{avg_aqi:.2f}</div>
                         <div class="stat-label">Average AQI</div>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     st.markdown(f"""
                     <div class="stat-item">
-                        <div class="stat-value">{min_aqi:.1f}</div>
+                        <div class="stat-value">{min_aqi:.2f}</div>
                         <div class="stat-label">Min AQI</div>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     st.markdown(f"""
                     <div class="stat-item">
-                        <div class="stat-value">{max_aqi:.1f}</div>
+                        <div class="stat-value">{max_aqi:.2f}</div>
                         <div class="stat-label">Max AQI</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -764,24 +921,24 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 🔄 Latest Jobs")
+        st.markdown('<h3 style="color:#ffffff;">🔄 Latest Jobs</h3>', unsafe_allow_html=True)
         # This would show recent job statuses if implemented
-        st.markdown('<div class="info-box">🚀 Job monitoring feature coming soon...</div>', unsafe_allow_html=True)
+        st.markdown('<div class="info-box" style="color: #ffffff">🚀 Job monitoring feature coming soon...</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("### 📈 Latest Forecasts")
+        st.markdown('<h3 style="color:#ffffff;">📈 Latest Forecasts</h3>', unsafe_allow_html=True)
         # This would show recent forecasts if implemented
-        st.markdown('<div class="info-box">🔮 Forecast history feature coming soon...</div>', unsafe_allow_html=True)
+        st.markdown('<div class="info-box" style="color: #ffffff">🔮 Forecast history feature coming soon...</div>', unsafe_allow_html=True)
     
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style="text-align: center; color: #7f8c8d; padding: 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 15px; margin-top: 2rem;">
-        <h3 style="color: #2c3e50; margin-bottom: 1rem;">🌤️ AQI Forecasting Dashboard</h3>
-        <p style="margin: 0.5rem 0; font-size: 1rem;">Real-time air quality monitoring and prediction system</p>
-        <p style="margin: 0.5rem 0; font-size: 0.9rem;">Built with Streamlit & FastAPI</p>
-        <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 10px; display: inline-block;">
-            <p style="margin: 0; font-size: 0.8rem; color: #95a5a6;">
+    <div style="text-align: center; color: #ffffff; padding: 1.5rem; background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%); border: 1px solid rgba(255,255,255,0.07); border-radius: 15px; margin-top: 2rem;">
+        <h3 style="color: #ffffff; margin-bottom: 0.6rem;">🌤️ AQI Forecasting Dashboard</h3>
+        <p style="margin: 0.4rem 0; font-size: 1rem; color:#e0e6ee;">Real-time air quality monitoring and prediction system</p>
+        <p style="margin: 0.4rem 0; font-size: 0.9rem; color:#cfd6df;">Built with Streamlit & FastAPI</p>
+        <div style="margin-top: 0.8rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; display: inline-block;">
+            <p style="margin: 0; font-size: 0.85rem; color: #e6f0ff;">
                 Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             </p>
         </div>

@@ -12,41 +12,70 @@ logger = get_logger('data_access')
 
 async def get_latest_aqi() -> Optional[Dict[str, Any]]:
     """
-    Get latest numeric AQI data from features CSV.
+    Get latest numeric AQI data, preferring merged CSV numerical_aqi when available.
     
     Returns:
-        Dict with timestamp and target_aqi_24h, or None if not available
+        Dict with timestamp and numerical_aqi, or None if not available
     """
     try:
-        if not FEATURES_CSV.exists():
-            logger.warning("Features CSV not found")
-            return None
+        # 1) Prefer merged CSV if it already contains numerical_aqi (written by realtime preprocessing)
+        if MERGED_CSV.exists():
+            df_merged = pd.read_csv(MERGED_CSV)
+            if not df_merged.empty and 'timestamp' in df_merged.columns:
+                df_merged['timestamp'] = pd.to_datetime(df_merged['timestamp'])
+                latest_row_merged = df_merged.loc[df_merged['timestamp'].idxmax()]
+                if 'numerical_aqi' in df_merged.columns and pd.notna(latest_row_merged.get('numerical_aqi')):
+                    logger.info("Using merged CSV numerical_aqi for latest AQI")
+                    return {
+                        "timestamp": latest_row_merged['timestamp'].isoformat(),
+                        "aqi_24h": float(latest_row_merged['numerical_aqi']),
+                        "aqi_48h": None,
+                        "aqi_72h": None,
+                        "data_source": "merged_csv"
+                    }
         
-        # Read the features CSV
-        df = pd.read_csv(FEATURES_CSV)
+        # 2) Try real-time features CSV next (most current processed features)
+        realtime_csv = ROOT / "data_repositories" / "features" / "phase1_realtime_features.csv"
+        if realtime_csv.exists():
+            logger.info("Using real-time features CSV for latest AQI")
+            df = pd.read_csv(realtime_csv)
+        else:
+            # 3) Fallback to regular features CSV
+            if not FEATURES_CSV.exists():
+                logger.warning("Features CSV not found")
+                return None
+            df = pd.read_csv(FEATURES_CSV)
         
         if df.empty:
             logger.warning("Features CSV is empty")
             return None
         
-        # Check if required columns exist
-        required_cols = ['timestamp', 'target_aqi_24h']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        
-        if missing_cols:
-            logger.warning(f"Missing required columns: {missing_cols}")
+        # Check if timestamp column exists
+        if 'timestamp' not in df.columns:
+            logger.warning("Timestamp column not found")
             return None
         
         # Get the latest row
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         latest_row = df.loc[df['timestamp'].idxmax()]
         
+        # Try to get AQI from various possible column names
+        aqi_24h = None
+        for aqi_col in ['numerical_aqi', 'target_aqi_24h', 'aqi_24h', 'aqi']:
+            if aqi_col in latest_row and pd.notna(latest_row.get(aqi_col)):
+                aqi_24h = float(latest_row[aqi_col])
+                break
+        
+        if aqi_24h is None:
+            logger.warning("No AQI value found in latest row")
+            return None
+        
         return {
             "timestamp": latest_row['timestamp'].isoformat(),
-            "aqi_24h": float(latest_row['target_aqi_24h']) if pd.notna(latest_row['target_aqi_24h']) else None,
+            "aqi_24h": aqi_24h,
             "aqi_48h": float(latest_row.get('target_aqi_48h', None)) if 'target_aqi_48h' in latest_row and pd.notna(latest_row.get('target_aqi_48h')) else None,
             "aqi_72h": float(latest_row.get('target_aqi_72h', None)) if 'target_aqi_72h' in latest_row and pd.notna(latest_row.get('target_aqi_72h')) else None,
-            "data_source": "features_csv"
+            "data_source": "realtime_features_csv" if realtime_csv.exists() else "features_csv"
         }
         
     except Exception as e:
@@ -65,9 +94,38 @@ async def get_aqi_history(hours: int = 168) -> List[Dict[str, Any]]:
         List of dicts with timestamp and AQI values
     """
     try:
-        # Try to get data from features CSV first (for historical forecasting data)
+        # Try to get data from real-time features CSV first (most current data)
+        realtime_csv = ROOT / "data_repositories" / "features" / "phase1_realtime_features.csv"
+        
+        if realtime_csv.exists():
+            logger.info("Using real-time features CSV for AQI history")
+            try:
+                df = pd.read_csv(realtime_csv)
+                
+                if not df.empty:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                    df = df.dropna(subset=['timestamp'])
+                    
+                    if not df.empty:
+                        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+                        df_filtered = df[df['timestamp'] >= cutoff_time]
+                        
+                        if not df_filtered.empty:
+                            # Convert to list of dicts
+                            result = []
+                            for _, row in df_filtered.iterrows():
+                                data_point = _create_aqi_data_point(row)
+                                if data_point:
+                                    result.append(data_point)
+                            
+                            logger.info(f"Retrieved {len(result)} AQI data points from real-time features CSV for last {hours} hours")
+                            return result
+            except Exception as e:
+                logger.warning(f"Failed to read real-time features CSV: {e}")
+        
+        # Fallback to regular features CSV
         if FEATURES_CSV.exists():
-            logger.info("Using features CSV for AQI history")
+            logger.info("Using regular features CSV for AQI history")
             try:
                 df = pd.read_csv(FEATURES_CSV, usecols=['timestamp', 'target_aqi_24h', 'target_aqi_48h', 'target_aqi_72h'])
                 
@@ -175,10 +233,11 @@ async def get_latest_weather() -> Optional[Dict[str, Any]]:
             "data_source": "merged_csv"
         }
         
-        # Common weather columns to look for
+        # Common weather columns to look for (including exact column names from CSV)
         weather_columns = [
-            'temperature', 'temp', 'humidity', 'hum', 'wind_speed', 'wind_speed_10m',
-            'wind_direction', 'wind_dir', 'pressure', 'precipitation', 'rain',
+            'temperature', 'temp', 'relative_humidity', 'humidity', 'hum', 
+            'wind_speed', 'wind_speed_10m', 'wind_direction', 'wind_dir', 
+            'pressure', 'precipitation', 'rain', 'dew_point', 'dew',
             'solar_radiation', 'solar', 'uv_index', 'uv', 'visibility', 'vis'
         ]
         
@@ -203,6 +262,97 @@ async def get_latest_weather() -> Optional[Dict[str, Any]]:
         
     except Exception as e:
         logger.error(f"Failed to get latest weather: {e}")
+        return None
+
+
+async def get_latest_pollutants() -> Optional[Dict[str, Any]]:
+    """
+    Get latest pollutant data from real-time features CSV.
+    
+    Returns:
+        Dict with latest pollutant information, or None if not available
+    """
+    try:
+        # Try real-time features CSV first (most current data)
+        realtime_csv = ROOT / "data_repositories" / "features" / "phase1_realtime_features.csv"
+        
+        if realtime_csv.exists():
+            logger.info("Using real-time features CSV for pollutants")
+            df = pd.read_csv(realtime_csv)
+        else:
+            # Fallback to merged data
+            logger.info("Real-time features CSV not found, using merged data")
+            if not MERGED_CSV.exists():
+                logger.warning("Merged CSV not found")
+                return None
+            df = pd.read_csv(MERGED_CSV)
+        
+        if df.empty:
+            logger.warning("CSV is empty")
+            return None
+        
+        # Check if timestamp column exists
+        if 'timestamp' not in df.columns:
+            logger.warning("Timestamp column not found")
+            return None
+        
+        # Get the latest row
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        latest_row = df.loc[df['timestamp'].idxmax()]
+        
+        # Extract pollutant data with fallbacks
+        pollutants = {}
+        
+        # PM data
+        for pm_col in ['pm2_5', 'pm2_5_24h_avg']:
+            if pm_col in latest_row and pd.notna(latest_row[pm_col]):
+                pollutants['pm2_5'] = float(latest_row[pm_col])
+                break
+        
+        for pm_col in ['pm10', 'pm10_24h_avg']:
+            if pm_col in latest_row and pd.notna(latest_row[pm_col]):
+                pollutants['pm10'] = float(latest_row[pm_col])
+                break
+        
+        # Gaseous pollutants (prioritize ppb/ppm columns)
+        for o3_col in ['o3_ppb', 'o3']:
+            if o3_col in latest_row and pd.notna(latest_row[o3_col]):
+                pollutants['o3_ppb'] = float(latest_row[o3_col])
+                break
+        
+        for no2_col in ['no2_ppb', 'no2']:
+            if no2_col in latest_row and pd.notna(latest_row[no2_col]):
+                pollutants['no2_ppb'] = float(latest_row[no2_col])
+                break
+        
+        for so2_col in ['so2_ppb', 'so2']:
+            if so2_col in latest_row and pd.notna(latest_row[so2_col]):
+                pollutants['so2_ppb'] = float(latest_row[so2_col])
+                break
+        
+        for co_col in ['co_ppm', 'co']:
+            if co_col in latest_row and pd.notna(latest_row[co_col]):
+                pollutants['co_ppm'] = float(latest_row[co_col])
+                break
+        
+        # Other pollutants
+        for nh3_col in ['nh3']:
+            if nh3_col in latest_row and pd.notna(latest_row[nh3_col]):
+                pollutants['nh3'] = float(latest_row[nh3_col])
+                break
+        
+        # Add timestamp
+        pollutants['timestamp'] = latest_row['timestamp'].isoformat()
+        
+        if len(pollutants) <= 1:  # Only timestamp
+            logger.warning("No pollutant data found in latest row")
+            return None
+        
+        logger.info(f"Retrieved pollutant data for {latest_row['timestamp']}")
+        return pollutants
+        
+    except Exception as e:
+        logger.error(f"Failed to get latest pollutants: {e}")
         return None
 
 
@@ -275,13 +425,19 @@ def _create_aqi_data_point(row: pd.Series) -> Optional[Dict[str, Any]]:
         if pd.isna(timestamp):
             return None
         
-        aqi_24h = row.get('target_aqi_24h')
-        if pd.isna(aqi_24h):
+        # Try to get AQI from various possible column names
+        aqi_24h = None
+        for aqi_col in ['numerical_aqi', 'target_aqi_24h', 'aqi_24h', 'aqi']:
+            if aqi_col in row and pd.notna(row.get(aqi_col)):
+                aqi_24h = float(row[aqi_col])
+                break
+        
+        if aqi_24h is None:
             return None
         
         data_point = {
             "timestamp": timestamp.isoformat(),
-            "aqi_24h": float(aqi_24h)
+            "aqi_24h": aqi_24h
         }
         
         # Add 48h and 72h if available

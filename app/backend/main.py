@@ -4,14 +4,25 @@ from fastapi.responses import JSONResponse
 import logging
 import asyncio
 from typing import Dict, Any, Optional
+from datetime import datetime
 
-from .jobs import create_job, update_step, set_status, get_job
-from .services.collect import collect_data
-from .services.preprocess import preprocess_data
-from .services.forecast import run_forecast, get_latest_forecast, get_forecast_by_id
-from .services.data_access import get_latest_aqi, get_aqi_history, get_latest_weather
-from .models.schemas import CollectResponse, PreprocessResponse, ForecastResponse, JobStatus
-from .utils.logging import get_logger
+try:
+    from .jobs import create_job, update_step, set_status, get_job
+    from .services.collect import collect_data
+    from .services.preprocess import preprocess_data
+    from .services.forecast import run_forecast, get_latest_forecast, get_forecast_by_id
+    from .services.data_access import get_latest_aqi, get_aqi_history, get_latest_weather, get_latest_pollutants
+    from .models.schemas import CollectResponse, PreprocessResponse, ForecastResponse, JobStatus
+    from .utils.logging import get_logger
+except ImportError:
+    # Fallback for direct module execution
+    from app.backend.jobs import create_job, update_step, set_status, get_job
+    from app.backend.services.collect import collect_data
+    from app.backend.services.preprocess import preprocess_data
+    from app.backend.services.forecast import run_forecast, get_latest_forecast, get_forecast_by_id
+    from app.backend.services.data_access import get_latest_aqi, get_aqi_history, get_latest_weather, get_latest_pollutants
+    from app.backend.models.schemas import CollectResponse, PreprocessResponse, ForecastResponse, JobStatus
+    from app.backend.utils.logging import get_logger
 
 # Configure logging
 logger = get_logger('main')
@@ -63,8 +74,12 @@ async def global_exception_handler(request, exc):
 async def health_check():
     """Health check endpoint with detailed system status."""
     try:
-        from .services.data_access import get_data_summary
-        from .utils.paths import ROOT, FEATURES_CSV, MERGED_CSV
+        try:
+            from .services.data_access import get_data_summary
+            from .utils.paths import ROOT, FEATURES_CSV, MERGED_CSV
+        except ImportError:
+            from app.backend.services.data_access import get_data_summary
+            from app.backend.utils.paths import ROOT, FEATURES_CSV, MERGED_CSV
         
         # Get system status
         data_summary = get_data_summary()
@@ -459,13 +474,35 @@ async def get_latest_weather_endpoint():
         )
 
 
-# Add missing import
-from datetime import datetime
+@app.get("/pollutants/latest")
+async def get_latest_pollutants_endpoint():
+    """Get the latest pollutant data."""
+    try:
+        result = await get_latest_pollutants()
+        if result is None:
+            raise HTTPException(
+                status_code=404, 
+                detail="No pollutant data available. Run data collection first."
+            )
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get latest pollutants: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to get latest pollutants: {str(e)}"
+        )
+
 
 
 if __name__ == "__main__":
     import uvicorn
-    from .utils.paths import ENV_CONFIG
+    try:
+        from .utils.paths import ENV_CONFIG
+    except ImportError:
+        from app.backend.utils.paths import ENV_CONFIG
     uvicorn.run(
         app, 
         host=ENV_CONFIG["API_HOST"], 
