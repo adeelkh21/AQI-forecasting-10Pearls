@@ -1,0 +1,355 @@
+prompt:
+>now i want to make a streamlit app and a fast api
+>this app should be inreal time and perfect for use 
+>the app display the recent data for pollution and weather and the current AQI
+> when the collect data button is triggered, the app should collect data, ( just like phase 1 sscript) the collected data will be merged with the merged.csv(AQI-forecasting-10Pearls\data_repositories\historical_data\processed\merged_data.csv) after the recent timestamp
+> in the background the phase2 and phase 3 scripts will be applied on the data so that the data is ready to be forecasted
+> when the forecast AQI button is pressed it should trigger the forecast script to forecast the AQI for next 3 days( 72 hours)
+> more over there should be a graph that would plot the time againt numerical AQI graphs that is the numerical AQI can be found in ("AQI-forecasting-10Pearls\data_repositories\features\phase1_fixed_selected_features.csv") with attribute name as (target_aqi_24h)
+
+the system should be sophisticated clean presentable, reliable and consistent
+
+now make a detail roadmap for me to implement this system... keep it step by step 
+
+ans:
+Here’s a clear, step-by-step roadmap to build a clean, reliable real-time system with a FastAPI backend and a Streamlit UI that ties into your existing pipeline.
+
+### High-level architecture
+- Backend: FastAPI service to orchestrate jobs (collect → preprocess → select features → forecast), expose live status and data APIs, and manage file updates.
+- Frontend: Streamlit app for operators to trigger actions, monitor status, view latest AQI/weather, and plot historical numeric AQI.
+- Storage: Keep using your CSV artifacts and `saved_models/` structure; add a simple in-memory job registry in the API for progress tracking. Optional: persist job history as JSON for durability.
+
+### 1) Project layout
+Create an `app/` folder to cleanly separate the new components:
+```
+app/
+  backend/
+    main.py                 # FastAPI app
+    jobs.py                 # job orchestration, background tasks/status
+    services/
+      collect.py            # wraps phase1 collection + merge logic
+      preprocess.py         # wraps phase2 + phase3
+      forecast.py           # wraps forecast.py execution
+      data_access.py        # read latest AQI/weather/history from CSVs
+    models/
+      schemas.py            # Pydantic models for requests/responses
+    utils/
+      paths.py              # absolute paths to CSVs/models, root resolution
+      runner.py             # safe subprocess wrappers, venv aware
+      logging.py            # API logging helpers
+  frontend/
+    streamlit_app.py        # Streamlit UI
+```
+
+### 2) Shared configuration and paths
+- Add `app/backend/utils/paths.py` to centralize paths:
+  - `ROOT = Path(__file__).resolve().parents[2]`
+  - `MERGED_CSV = ROOT / "data_repositories/historical_data/processed/merged_data.csv"`
+  - `FEATURES_CSV = ROOT / "data_repositories/features/phase1_fixed_selected_features.csv"`
+  - `FEATURE_COLS_PKL`, `FEATURE_SCALER_PKL`
+  - `FORECASTS_DIR = ROOT / "saved_models/forecasts"`
+  - `MODELS_DIR = ROOT / "saved_models"`
+- Add `RUN_PY = ROOT / "venv/Scripts/python.exe"` on Windows; fallback to `python` if missing.
+- Optional `.env`:
+  - `API_HOST=127.0.0.1`, `API_PORT=8000`
+  - `STREAMLIT_API_BASE=http://127.0.0.1:8000`
+
+### 3) Backend: process orchestration (FastAPI)
+- Add `app/backend/utils/runner.py`
+  - Provide `run_py(args: list[str]) -> CompletedProcess` that uses the resolved venv interpreter. Capture stdout/stderr, timeout, return code.
+- Add `app/backend/jobs.py`
+  - In-memory `jobs: dict[job_id] = {status, created_at, steps:[...], error?, meta?}`
+  - Create helper `start_job(coro)` to run async tasks in background (or `BackgroundTasks`). Mark steps: queued → running → success/failure.
+- Endpoints in `app/backend/main.py`
+  - `GET /health`: return ok, versions of key libs, last updated timestamps of CSVs.
+  - `POST /collect`:
+    - Body: optional params (e.g., hours to backfill).
+    - Action: run data collection (phase1-like), then merge into `merged_data.csv` after the last timestamp, dedupe on timestamp, sort by time, write atomically.
+    - Return: rows_collected, rows_added, last_timestamp.
+  - `POST /preprocess`:
+    - Action: run `phase2_data_preprocessing.py` then `phase3_feature_selection.py` via `run_py()`.
+    - Return: success + produced artifact timestamps.
+  - `POST /pipeline/collect-and-prep`:
+    - Start a job that runs the above two steps in sequence in the background; return `job_id`.
+  - `POST /forecast`:
+    - Action: run `forecast.py` via `run_py()`. Return output paths/summary (e.g., forecast CSV with next 72 hours).
+  - `GET /jobs/{job_id}`: return status/progress/errors.
+  - `GET /aqi/latest`:
+    - Read latest numeric AQI and timestamp from `FEATURES_CSV` (`target_aqi_24h`) and return it.
+  - `GET /aqi/history?hours=168`:
+    - Return time series from `FEATURES_CSV` for plotting (timestamp, `target_aqi_24h`).
+  - `GET /weather/latest`:
+    - Return latest weather fields from your merged dataset (decide columns to expose).
+- Error handling
+  - All subprocess calls: enforce timeout, capture logs, return meaningful error messages.
+  - Validate file existence before reading; return “stale/missing” status if absent.
+
+### 4) Backend services
+- `services/collect.py`
+  - Option A (safer): Call your phase1 collector as a subprocess and write results to a temp CSV; then merge into `MERGED_CSV`.
+  - Merging algorithm:
+    - Read `MERGED_CSV` last timestamp (or set to very old if missing).
+    - Read newly collected CSV; filter rows with `timestamp > last_timestamp`.
+    - Concat, drop duplicates on `timestamp`, sort ascending, write back atomically (write temp + replace).
+- `services/preprocess.py`
+  - Call `phase2_data_preprocessing.py` then `phase3_feature_selection.py` via `runner.py`.
+  - Verify `FEATURES_CSV`, `FEATURE_COLS_PKL`, `FEATURE_SCALER_PKL` exist after run.
+- `services/forecast.py`
+  - Call `forecast.py` via `runner.py`.
+  - Return pointer to forecast outputs (CSV/plots) under `saved_models/forecasts`.
+
+### 5) Data access layer
+- `services/data_access.py`
+  - `get_latest_aqi()` → read `FEATURES_CSV`, return latest `timestamp` and `target_aqi_24h`.
+  - `get_aqi_history(hours:int)` → slice last N hours from `FEATURES_CSV`.
+  - `get_latest_weather()` → read `MERGED_CSV`, pick last row’s weather columns (temperature, humidity, wind, etc.).
+  - All functions should handle empty/missing files gracefully (return None/empty arrays).
+
+### 6) Frontend (Streamlit)
+- Page layout in `app/frontend/streamlit_app.py`
+  - Header: project name + environment badge + last updated timestamps.
+  - Top KPIs:
+    - Current AQI (from `/aqi/latest`)
+    - Latest temperature/humidity/wind (from `/weather/latest`)
+    - Last updated time
+  - Actions
+    - Button: “Collect Data”
+      - Calls `POST /pipeline/collect-and-prep` to run collection+preprocess in background.
+      - Shows status area with live polling `/jobs/{job_id}` every 3–5 seconds until done.
+    - Button: “Forecast AQI”
+      - Calls `POST /forecast`, shows spinner and then links to output CSV/summary metrics.
+  - Charts
+    - Historical numeric AQI: line chart of `timestamp` vs `target_aqi_24h` from `/aqi/history?hours=168` (last 7 days by default).
+    - Use Plotly for interactivity (hover, zoom).
+  - “Live” feel
+    - Use `st.autorefresh(interval=10000, key="refresh")` or periodic polling for KPIs and chart data.
+    - Cache data fetch with TTL to reduce load: `@st.cache_data(ttl=10)`.
+  - Config
+    - `st.secrets["API_BASE"]` or `.env` for the API base URL.
+
+### 7) Real-time behavior and reliability
+- Polling cadence
+  - Streamlit polls job status (`/jobs/{id}`) every few seconds for progress.
+  - KPIs and chart auto-refresh every 10–30 seconds.
+- Optional: WebSocket/SSE
+  - If you want near-instant progress updates, add a WebSocket `/ws/jobs/{id}` and use `websocket-client` in Streamlit. Start with polling for simplicity.
+- Atomic writes
+  - Always write CSVs via temp files then move/replace to avoid partial reads.
+- Timezones
+  - Normalize all timestamps to UTC in backend; localize only in UI.
+- Guardrails
+  - Hard timeouts for subprocess steps; report failures with actionable messages.
+  - Input validation for parameters (e.g., hours window).
+
+### 8) Implementation details for merging
+- Read `MERGED_CSV` with `usecols=['timestamp', ...]`.
+- Detect `last_ts = df['timestamp'].max()` (parse dates).
+- New data `ndf[ndf['timestamp'] > last_ts]`.
+- Concat, `drop_duplicates(subset=['timestamp'], keep='last')`, sort by timestamp.
+- Write back atomically.
+
+### 9) Forecast integration
+- Ensure `forecast.py` produces a consistent CSV (timestamps + predicted AQI for next 72h). If not, adjust `forecast.py` to:
+  - Save to `saved_models/forecasts/forecast_YYYYMMDD_HHMM.csv`.
+  - Include columns: `timestamp`, `predicted_aqi`.
+- Optionally show a second chart for next 72 hours predicted AQI.
+
+### 10) Testing checklist
+- Start API, call:
+  - `/health` returns ok.
+  - `/collect` with empty `MERGED_CSV` (first run) → merges cleanly.
+  - `/preprocess` produces features CSV and pickles.
+  - `/pipeline/collect-and-prep` returns a job_id; status transitions to success.
+  - `/aqi/latest` returns values once features exist.
+  - `/aqi/history` returns proper window and sorted timestamps.
+  - `/forecast` completes and writes outputs.
+- Streamlit
+  - Buttons trigger flows; status polling works; charts render with tooltips; refreshes don’t break session state.
+
+### 11) How to run locally (Windows)
+- Start API (from project root):
+  - `.\\venv\\Scripts\\python -m uvicorn app.backend.main:app --reload --host 127.0.0.1 --port 8000`
+- Start Streamlit:
+  - `streamlit run app/frontend/streamlit_app.py`
+- Update `STREAMLIT_API_BASE` if the API host/port differ.
+
+### 12) Optional enhancements
+- Persist job history in `saved_models/reports/job_history.json` for audit.
+- Add role-based auth to backend endpoints if exposing publicly.
+- Nightly scheduled pipeline calling your existing `daily_runner.py`.
+- Dockerize API and Streamlit for deployment.
+- Basic uptime checks and error notifications.
+
+If you want, I can scaffold the `app/backend` and `app/frontend` files with the endpoint contracts and Streamlit page layout next so you can run the first end-to-end flow.
+
+
+---------------------------------
+
+
+
+
+
+
+
+
+
+
+
+### Phase 0 — Prereqs and environment
+- **Goal**: Stable local runtime on Windows.
+- **Steps**
+  - Ensure venv active: `.\\venv\\Scripts\\Activate.ps1`
+  - Upgrade tools: `python -m pip install --upgrade pip uvicorn fastapi streamlit plotly python-dotenv`
+- **Exit criteria**: Python runs; `uvicorn --help` and `streamlit --version` work.
+
+### Phase 1 — Project scaffolding
+- **Goal**: Clean app skeleton separated by backend/frontend.
+- **Steps**
+  - Create folders: `app/backend/{services,models,utils}` and `app/frontend/`.
+  - Create files:
+    - `app/backend/main.py`
+    - `app/backend/jobs.py`
+    - `app/backend/services/{collect.py,preprocess.py,forecast.py,data_access.py}`
+    - `app/backend/models/schemas.py`
+    - `app/backend/utils/{paths.py,runner.py,logging.py}`
+    - `app/frontend/streamlit_app.py`
+- **Exit criteria**: Imports succeed: `python -c "import app.backend.main"`.
+
+### Phase 2 — Shared configuration and paths
+- **Goal**: One place for all paths and env.
+- **Steps**
+  - Implement `app/backend/utils/paths.py`:
+    - `ROOT`, `MERGED_CSV`, `FEATURES_CSV`, `FEATURE_COLS_PKL`, `FEATURE_SCALER_PKL`, `FORECASTS_DIR`, `MODELS_DIR`.
+    - `RUN_PY` resolution: prefer `venv/Scripts/python.exe`, fallback `python`.
+  - Optional `.env`: `API_HOST`, `API_PORT`, `STREAMLIT_API_BASE`.
+- **Exit criteria**: `python -c "from app.backend.utils.paths import MERGED_CSV; print(MERGED_CSV)"` prints a valid path.
+
+### Phase 3 — Safe subprocess runner
+- **Goal**: Consistent script execution with timeouts and logs.
+- **Steps**
+  - Implement `app/backend/utils/runner.py`:
+    - `run_py(args: list[str], timeout: int=3600) -> CompletedProcess`
+    - Capture `stdout`, `stderr`, `returncode`; raise/return structured errors.
+- **Exit criteria**: Dry-run call prints help of `forecast.py` or `python -V`.
+
+### Phase 4 — Job orchestration and status
+- **Goal**: Track long-running tasks and their progress.
+- **Steps**
+  - Implement `app/backend/jobs.py`:
+    - In-memory `jobs: dict[job_id] = {status, created_at, steps, error, meta}`.
+    - Helpers: `create_job(steps)`, `update_step(job_id, step, status, message)`, `complete_job(...)`.
+    - Background execution with `asyncio.create_task` or FastAPI `BackgroundTasks`.
+- **Exit criteria**: `GET /jobs/{id}` returns changing status for a demo coroutine.
+
+### Phase 5 — Backend services
+- **Goal**: Wrap your existing scripts as callable services.
+- **Steps**
+  - `services/collect.py`
+    - Run phase1-equivalent collector to a temp CSV.
+    - Merge into `MERGED_CSV` using algorithm:
+      - Load `MERGED_CSV` if exists; compute `last_ts`.
+      - Load newly collected rows; filter `timestamp > last_ts`.
+      - Concat, `drop_duplicates(subset=['timestamp'], keep='last')`, sort asc.
+      - Atomic write: write `.tmp` then replace.
+    - Return `rows_collected`, `rows_added`, `last_timestamp`.
+  - `services/preprocess.py`
+    - Sequentially call `phase2_data_preprocessing.py` then `phase3_feature_selection.py` via `runner.py`.
+    - Validate artifacts exist: `FEATURES_CSV`, `FEATURE_COLS_PKL`, `FEATURE_SCALER_PKL`.
+  - `services/forecast.py`
+    - Call `forecast.py` via `runner.py`.
+    - Ensure outputs land under `saved_models/forecasts/forecast_YYYYMMDD_HHMM.csv`.
+  - `services/data_access.py`
+    - `get_latest_aqi()` from `FEATURES_CSV` (`timestamp`, `target_aqi_24h`).
+    - `get_aqi_history(hours)` slice last N hours from features CSV.
+    - `get_latest_weather()` read last row of `MERGED_CSV` and return key weather columns.
+- **Exit criteria**: Each service callable in isolation returns a structured dict or raises a clear error.
+
+### Phase 6 — API endpoints (FastAPI)
+- **Goal**: Expose orchestration and data reads.
+- **Steps**
+  - `GET /health`: ok + artifact timestamps + versions.
+  - `POST /collect`: run collection + merge; return counts and `last_timestamp`.
+  - `POST /preprocess`: run phase2, phase3; return artifact timestamps.
+  - `POST /pipeline/collect-and-prep`: background job running both; return `job_id`.
+  - `POST /forecast`: trigger forecast; return output CSV path and summary.
+  - `GET /jobs/{job_id}`: job status/progress.
+  - `GET /aqi/latest`: latest `timestamp`, `target_aqi_24h`.
+  - `GET /aqi/history?hours=168`: timeseries for plotting.
+  - `GET /weather/latest`: latest weather fields from merged dataset.
+  - Add consistent error handling and timeouts on all subprocess calls.
+- **Exit criteria**: `uvicorn app.backend.main:app --reload` and curl each endpoint successfully.
+
+### Phase 7 — Streamlit UI
+- **Goal**: Operator-friendly, near‑real‑time dashboard.
+- **Steps**
+  - Header with project name + last updated timestamps.
+  - KPIs: Current AQI, latest temp/humidity/wind, last refreshed.
+  - Actions:
+    - “Collect Data” → call `/pipeline/collect-and-prep`; poll `/jobs/{id}` every 3–5s until done.
+    - “Forecast AQI” → call `/forecast`; show spinner, then link to CSV summary.
+  - Charts:
+    - Historical numeric AQI: `/aqi/history?hours=168` plotted with Plotly (timestamp vs `target_aqi_24h`).
+  - “Live” behavior:
+    - `st.autorefresh(interval=10000, key="refresh")` and cache pulls with `@st.cache_data(ttl=10)`.
+  - Config: read `API_BASE` from `st.secrets` or `.env`.
+- **Exit criteria**: `streamlit run app/frontend/streamlit_app.py` renders KPIs and chart; buttons work and show progress.
+
+### Phase 8 — Data correctness and merging hardening
+- **Goal**: Reliable, idempotent merges.
+- **Steps**
+  - Validate date parsing; normalize to UTC.
+  - Strict schema checks: required columns present; log discrepancies.
+  - Implement atomic writes for all CSV updates.
+  - Dedupe on `timestamp` only; consider secondary keys if needed.
+- **Exit criteria**: Re-running collect on the same window adds 0 rows; no ordering issues.
+
+### Phase 9 — Forecast output normalization
+- **Goal**: Consistent forecast artifacts for UI.
+- **Steps**
+  - Ensure forecast CSV columns: `timestamp`, `predicted_aqi` (UTC).
+  - File pattern: `saved_models/forecasts/forecast_%Y%m%d_%H%M.csv`.
+  - Add endpoint to return latest forecast file metadata (optional).
+- **Exit criteria**: UI can parse and display next 72h predictions if you add a second chart.
+
+### Phase 10 — Reliability and guardrails
+- **Goal**: Fail safe and report clearly.
+- **Steps**
+  - Set per-step timeouts; surface stderr in API responses (truncated).
+  - Check file existence before reads; return “stale/missing” states.
+  - Centralized logging in `utils/logging.py`; include job_id in logs.
+- **Exit criteria**: Simulated failures produce helpful, user‑visible messages.
+
+### Phase 11 — Testing and validation
+- **Goal**: Confidence in flows end‑to‑end.
+- **Steps**
+  - Manual API tests for: `/health`, `/collect`, `/preprocess`, `/pipeline/collect-and-prep`, `/forecast`, `/aqi/latest`, `/aqi/history`, `/weather/latest`.
+  - UI tests: buttons trigger flows, status polling updates, charts render.
+  - Edge cases: empty `MERGED_CSV`, missing features CSV, slow scripts, duplicate timestamps.
+- **Exit criteria**: All tests pass; no unhandled exceptions; artifacts generated as expected.
+
+### Phase 12 — Runbook and operations
+- **Goal**: Easy to run locally and deploy later.
+- **Steps**
+  - Update `README.md` with:
+    - How to run API and Streamlit on Windows.
+    - Required env vars and paths.
+    - Troubleshooting common errors (e.g., missing artifacts, permissions).
+  - Optionally add scripts:
+    - `scripts/start_api.ps1`
+    - `scripts/start_ui.ps1`
+- **Exit criteria**: New developer can set up and run in <15 minutes.
+
+### Phase 13 — Optional enhancements
+- **Goal**: Production readiness.
+- **Steps**
+  - Persist job history to `saved_models/reports/job_history.json`.
+  - Add `/ws/jobs/{id}` WebSocket (or SSE) for instant updates.
+  - Nightly schedule calling `daily_runner.py`.
+  - Basic auth for public exposure.
+  - Dockerfiles for API/UI.
+- **Exit criteria**: Feature toggles in place; optional pieces don’t block core flow.
+
+Short summary
+- Phases 1–6 scaffold backend with robust job orchestration and endpoints that wrap your existing scripts.
+- Phases 7–9 deliver a live Streamlit UI and consistent artifacts (AQI history and 72h forecast).
+- Phases 10–13 harden reliability, testing, and ops, with optional production upgrades.
