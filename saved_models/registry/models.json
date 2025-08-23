@@ -1,6 +1,6 @@
 {
   "created_at": "2025-08-20T15:49:20.784641",
-  "last_run_at": "2025-08-22T18:46:49.123206",
+  "last_run_at": "2025-08-23T02:03:55.173209",
   "thresholds": {
     "min_rmse_rel_improvement_daily": 0.02
   },
@@ -12,13 +12,13 @@
     },
     "48h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\tcn_48h.pth",
-      "rmse": 28.35458056063484,
-      "r2": -0.1817992925643921
+      "rmse": 27.46391786814053,
+      "r2": -0.1214313507080078
     },
     "72h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\tcn_72h.pth",
-      "rmse": 29.385977004878534,
-      "r2": -0.2618361711502075
+      "rmse": 28.67966302607237,
+      "r2": -0.2084259986877441
     }
   }
 }
