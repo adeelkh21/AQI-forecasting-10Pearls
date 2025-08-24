@@ -3,16 +3,18 @@
 Continuous 72-Hour AQI Forecasting System
 ========================================
 
-This script creates a continuous 72-hour prediction line by:
-1. Taking each hour of the next 24 hours as a base timestamp
-2. For each base timestamp, forecasting 24h, 48h, and 72h ahead
-3. Combining all predictions to create a continuous timeline
+This script creates a continuous 72-hour prediction line for the FUTURE by:
+1. Starting from the current hour (or next hour after latest data)
+2. Forecasting the next 72 hours ahead (not the past 72 hours)
+3. Using all three models: CatBoost (24h), TCN (48h), TCN (72h)
+4. Creating realistic, time-aware predictions with diurnal patterns
 
 Key Features:
-- Generates predictions for every hour of the next 24 hours
-- Creates a continuous 72-hour prediction line
+- Generates predictions for the NEXT 72 hours (future forecasting)
+- Creates a continuous 72-hour prediction line from current time
 - Uses all three models: CatBoost (24h), TCN (48h), TCN (72h)
 - Outputs both CSV and visualization
+- Ensures forecasts are always in the future, not the past
 
 Usage:
   python forecast_continuous_72h.py
@@ -259,12 +261,25 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
     feature_columns = _load_feature_columns()
     df = _load_features_df()
     
-    # Get the most recent timestamp from CSV
-    latest_timestamp = df['timestamp'].max()
-    print(f"📅 Latest timestamp in CSV: {latest_timestamp}")
+    # Get the most recent timestamp from CSV (this is our historical data endpoint)
+    latest_historical_timestamp = df['timestamp'].max()
+    print(f"📅 Latest historical data timestamp: {latest_historical_timestamp}")
     
-    print(f"🎯 Strategy: Create continuous 72-hour forecast line with rolling predictions")
-    print(f"   Each hour builds upon previous predictions for realistic continuity")
+    # Calculate the current time and ensure we're forecasting into the future
+    current_time = datetime.now()
+    # Round down to the nearest hour for consistency
+    current_hour = current_time.replace(minute=0, second=0, microsecond=0)
+    
+    # Ensure we're forecasting from the current hour, not from historical data
+    if current_hour > latest_historical_timestamp:
+        forecast_start_time = current_hour
+    else:
+        # If historical data is more recent than current time, use historical data + 1 hour
+        forecast_start_time = latest_historical_timestamp + timedelta(hours=1)
+    
+    print(f"🎯 Strategy: Create continuous 72-hour forecast line for the FUTURE")
+    print(f"   Starting from: {forecast_start_time}")
+    print(f"   Forecasting next 72 hours: {forecast_start_time} to {forecast_start_time + timedelta(hours=72)}")
     
     # Load models once
     print(f"\n🔧 Loading forecasting models...")
@@ -304,15 +319,15 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
     continuous_forecasts = []
     
     print(f"\n🚀 Starting continuous 72-hour forecasting...")
-    print(f"   Creating rolling forecast line from {latest_timestamp}")
+    print(f"   Creating rolling forecast line from {forecast_start_time}")
     
-    # Get the latest data point as our starting reference
-    latest_idx = df[df['timestamp'] == latest_timestamp].index[0]
+    # Get the latest data point as our starting reference for features
+    latest_idx = df[df['timestamp'] == latest_historical_timestamp].index[0]
     
     # Create continuous forecast for each hour from 1 to 72 hours ahead
     # We'll use a rolling approach where each prediction builds on previous ones
     for hours_ahead in range(1, 73):  # 1 to 72 hours
-        target_timestamp = latest_timestamp + timedelta(hours=hours_ahead)
+        target_timestamp = forecast_start_time + timedelta(hours=hours_ahead)
         
         print(f"   📊 Hour {hours_ahead:2d}/72: Forecasting for {target_timestamp.strftime('%Y-%m-%d %H:%M')}")
         
@@ -448,7 +463,7 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
             'hours_ahead': hours_ahead,
             'forecast_value': forecast_value,
             'model_used': model_used,
-            'base_timestamp': latest_timestamp
+            'base_timestamp': forecast_start_time
         }
         continuous_forecasts.append(forecast_row)
         
@@ -477,10 +492,10 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
     with open(json_path, 'w') as f:
         json.dump({
             'generated_at': datetime.now().isoformat(),
-            'base_timestamp': latest_timestamp.isoformat(),
+            'base_timestamp': forecast_start_time.isoformat(),
             'forecast_horizon': '72 hours',
-            'forecast_start': (latest_timestamp + timedelta(hours=1)).isoformat(),
-            'forecast_end': (latest_timestamp + timedelta(hours=72)).isoformat(),
+            'forecast_start': forecast_start_time.isoformat(),
+            'forecast_end': (forecast_start_time + timedelta(hours=72)).isoformat(),
             'total_hours_forecasted': len(continuous_df),
             'valid_forecasts': continuous_df['forecast_value'].notna().sum(),
             'data_info': {

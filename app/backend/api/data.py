@@ -163,3 +163,33 @@ async def clear_data_cache(
             status_code=500,
             detail=f"Error clearing data cache: {str(e)}"
         )
+
+@router.get("/data/aqi-timeline", tags=["Data"])
+async def get_aqi_timeline(
+    data_service = Depends(get_data_service)
+):
+    """
+    Get complete AQI timeline for the entire dataset
+    
+    Returns the complete AQI timeline with EPA-compliant calculations for all historical data.
+    This provides context for current AQI values and shows long-term air quality trends.
+    """
+    try:
+        timeline_data = data_service.get_complete_aqi_timeline()
+        
+        if "error" in timeline_data:
+            raise HTTPException(
+                status_code=404,
+                detail=timeline_data["error"]
+            )
+        
+        return timeline_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting AQI timeline: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving AQI timeline: {str(e)}"
+        )

@@ -399,6 +399,172 @@ def create_forecast_chart(forecast_data: Dict[str, Any]) -> go.Figure:
     
     return fig
 
+def create_aqi_timeline_chart(timeline_data, current_data):
+    """Create a complete AQI timeline chart using Plotly"""
+    try:
+        timeline = timeline_data.get('timeline', [])
+        if not timeline:
+            print("❌ No timeline data available")
+            return go.Figure()
+        
+        print(f"📊 Creating timeline chart with {len(timeline)} data points")
+        
+        # Extract data and convert timestamps to datetime
+        timestamps = []
+        aqi_values = []
+        categories = []
+        
+        for point in timeline:
+            try:
+                # Parse timestamp and convert to datetime
+                timestamp_str = point['timestamp']
+                if isinstance(timestamp_str, str):
+                    # Handle different timestamp formats
+                    if 'T' in timestamp_str:
+                        dt = pd.to_datetime(timestamp_str)
+                    else:
+                        dt = pd.to_datetime(timestamp_str, format='%Y-%m-%d %H:%M:%S')
+                else:
+                    dt = pd.to_datetime(timestamp_str)
+                
+                timestamps.append(dt)
+                aqi_values.append(float(point['aqi_value']))
+                categories.append(point['aqi_category'])
+                
+            except Exception as e:
+                print(f"⚠️ Error processing point: {point}, Error: {e}")
+                continue
+        
+        if not timestamps:
+            print("❌ No valid timestamps found")
+            return go.Figure()
+        
+        print(f"✅ Processed {len(timestamps)} valid data points")
+        print(f"📅 Date range: {min(timestamps)} to {max(timestamps)}")
+        print(f"📊 AQI range: {min(aqi_values):.1f} to {max(aqi_values):.1f}")
+        
+        # Get current AQI for highlighting
+        current_aqi = current_data.get('aqi_value', 0)
+        current_timestamp = current_data.get('timestamp', '')
+        
+        # Create figure
+        fig = go.Figure()
+        
+        # Add historical AQI line - use actual datetime objects
+        fig.add_trace(go.Scatter(
+            x=timestamps,
+            y=aqi_values,
+            mode='lines',
+            name='Historical AQI',
+            line=dict(color='#10b981', width=2),
+            hovertemplate='<b>Date:</b> %{x}<br><b>AQI:</b> %{y:.1f}<br><b>Category:</b> %{text}<extra></extra>',
+            text=categories
+        ))
+        
+        # Highlight current AQI point if we have current data
+        if current_aqi > 0:
+            # Find the most recent timestamp for current AQI
+            if timestamps:
+                current_dt = max(timestamps)  # Use most recent timestamp
+                fig.add_trace(go.Scatter(
+                    x=[current_dt],
+                    y=[current_aqi],
+                    mode='markers',
+                    name='Current AQI',
+                    marker=dict(
+                        size=15,
+                        color='#ef4444',
+                        symbol='diamond',
+                        line=dict(width=2, color='white')
+                    ),
+                    hovertemplate=f'<b>Current AQI:</b> {current_aqi:.1f}<br><b>Time:</b> %{{x}}<extra></extra>'
+                ))
+        
+        # Add AQI category bands
+        add_aqi_category_bands(fig)
+        
+        # Update layout with better formatting
+        fig.update_layout(
+            title="📊 Complete AQI Timeline - Historical Data & Current Status",
+            xaxis_title="Time (UTC)",
+            yaxis_title="AQI Value",
+            hovermode='x unified',
+            showlegend=True,
+            height=600,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#f3f4f6', size=12),
+            xaxis=dict(
+                gridcolor='rgba(255,255,255,0.1)',
+                showgrid=True,
+                rangeslider=dict(visible=True),
+                tickformat='%Y-%m-%d',
+                tickangle=45
+            ),
+            yaxis=dict(
+                gridcolor='rgba(255,255,255,0.1)',
+                showgrid=True,
+                range=[0, max(aqi_values) + 50] if aqi_values else [0, 500],
+                title="AQI Value"
+            ),
+            legend=dict(
+                bgcolor='rgba(0,0,0,0.8)',
+                bordercolor='#374151',
+                borderwidth=1
+            )
+        )
+        
+        print("✅ Timeline chart created successfully")
+        return fig
+        
+    except Exception as e:
+        print(f"❌ Error creating timeline chart: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return empty figure on error
+        return go.Figure()
+
+def add_aqi_category_bands(fig):
+    """Add AQI category background bands to a plotly figure"""
+    # AQI category breakpoints and colors
+    aqi_bands = [
+        (0, 50, 'Good', '#10b981', 0.1),
+        (51, 100, 'Moderate', '#f59e0b', 0.1),
+        (101, 150, 'Unhealthy for Sensitive Groups', '#f97316', 0.1),
+        (151, 200, 'Unhealthy', '#ef4444', 0.1),
+        (201, 300, 'Very Unhealthy', '#8b5cf6', 0.1),
+        (301, 500, 'Hazardous', '#7c2d12', 0.1)
+    ]
+    
+    for min_val, max_val, label, color, opacity in aqi_bands:
+        fig.add_shape(
+            type="rect",
+            x0=0,
+            x1=1,
+            y0=min_val,
+            y1=max_val,
+            xref="paper",
+            yref="y",
+            fillcolor=color,
+            opacity=opacity,
+            layer="below",
+            line_width=0
+        )
+        
+        # Add text labels for each band
+        fig.add_annotation(
+            x=0.02,
+            y=(min_val + max_val) / 2,
+            xref="paper",
+            yref="y",
+            text=label,
+            showarrow=False,
+            font=dict(size=10, color=color),
+            bgcolor="rgba(0,0,0,0.8)",
+            bordercolor=color,
+            borderwidth=1
+        )
+
 def create_weather_chart(weather: Dict[str, float]) -> go.Figure:
     """Create a weather conditions chart"""
     if not weather:
@@ -772,17 +938,56 @@ def main():
                         st.info("1. Click '🔄 Collect Data' button")
                         st.info("2. Wait for data collection to complete")
                         st.info("3. Click '🔄 Refresh Now' button")
-                        st.info("4. Data will appear here automatically")
-                else:
-                    st.info("📊 Pollutant data will appear here when available")
-                    st.info("**Make sure:**")
-                    st.info("• FastAPI backend is running")
-                    st.info("• Data collection has been triggered")
-                    st.info("• Data files exist in the system")
+            
+
+    
+    # AQI Timeline Chart Section - Main Dashboard
+    st.markdown("---")
+    st.markdown("## 📊 Complete AQI Timeline")
+    st.markdown("**View the complete air quality history and current trends**")
+    
+    # Get AQI timeline data
+    try:
+        timeline_response = requests.get(f"{API_BASE_URL}/api/v1/data/aqi-timeline", timeout=30)
+        if timeline_response.status_code == 200:
+            timeline_data = timeline_response.json()
+            
+            if timeline_data.get('success') and timeline_data.get('timeline'):
+                # Create AQI timeline chart
+                timeline_chart = create_aqi_timeline_chart(timeline_data, current_data)
+                st.plotly_chart(timeline_chart, use_container_width=True)
+                
+                # Display timeline statistics
+                col1, col2, col3, col4 = st.columns(4)
+                stats = timeline_data.get('aqi_statistics', {})
+                
+                with col1:
+                    st.metric("📊 Historical Min", f"{stats.get('min', 0):.0f}")
+                with col2:
+                    st.metric("📊 Historical Max", f"{stats.get('max', 0):.0f}")
+                with col3:
+                    st.metric("📊 Historical Mean", f"{stats.get('mean', 0):.1f}")
+                with col4:
+                    st.metric("📊 Historical Median", f"{stats.get('median', 0):.0f}")
+                
+                # Context information
+                st.info(f"💡 **Context**: Current AQI {aqi_value:.1f} ({aqi_category}) is "
+                       f"**{'below' if aqi_value < stats.get('mean', 0) else 'above'}** the historical average "
+                       f"of {stats.get('mean', 0):.1f}. This represents {len(timeline_data.get('timeline', [])):,} data points "
+                       f"from {timeline_data.get('date_range', {}).get('start', 'Unknown')} to "
+                       f"{timeline_data.get('date_range', {}).get('end', 'Unknown')}.")
+                
             else:
-                st.info("No weather data available")
+                st.warning("⚠️ No timeline data available")
+                
         else:
-            st.info("Weather data will appear here when available")
+            st.error(f"❌ Failed to load AQI timeline: {timeline_response.status_code}")
+            
+    except Exception as e:
+        st.error(f"❌ Error loading AQI timeline: {str(e)}")
+        st.info("💡 This feature requires the backend to be running and accessible.")
+    
+    st.markdown("---")
     
     # Forecast section
     st.markdown("## 🔮 AQI Forecast")
@@ -791,19 +996,19 @@ def main():
     forecast_data = app.get_latest_forecast()
     
     if forecast_data and forecast_data.get('success'):
-        data = forecast_data.get('data', {})
-        forecasts = data.get('forecasts', [])
+        # The backend returns the forecast data directly, not nested under 'data'
+        forecasts = forecast_data.get('forecasts', [])
         
         if forecasts:
             # Forecast chart
-            forecast_chart = create_forecast_chart(data)
+            forecast_chart = create_forecast_chart(forecast_data)
             st.plotly_chart(forecast_chart, use_container_width=True)
             
             # Forecast summary
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                horizon = data.get('forecast_horizon', 0)
+                horizon = forecast_data.get('forecast_horizon', 0)
                 st.metric("Forecast Horizon", f"{horizon} hours")
             
             with col2:
@@ -811,7 +1016,7 @@ def main():
                 st.metric("Total Predictions", total_forecasts)
             
             with col3:
-                models_used = data.get('metadata', {}).get('models_used', [])
+                models_used = forecast_data.get('metadata', {}).get('models_used', [])
                 st.metric("Models Used", len(models_used))
             
             # Forecast table
