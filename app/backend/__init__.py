@@ -1,2 +1,3 @@
-# Backend package marker
-
+"""
+Backend API services for the AQI Forecasting System
+"""

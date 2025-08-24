@@ -1,956 +1,834 @@
+"""
+AQI Forecasting System - Streamlit Frontend
+A sophisticated, real-time interface for monitoring and controlling AQI forecasting operations
+"""
 import streamlit as st
-import requests
+import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-import pandas as pd
-from datetime import datetime, timedelta
+from plotly.subplots import make_subplots
+import requests
 import time
 import json
-from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+import asyncio
+import threading
+from typing import Dict, Any, Optional, List
+import numpy as np
 
 # Page configuration
 st.set_page_config(
-    page_title="AQI Forecasting Dashboard",
+    page_title="AQI Forecasting System",
     page_icon="🌤️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/your-repo/aqi-forecasting',
+        'Report a bug': "https://github.com/your-repo/aqi-forecasting/issues",
+        'About': "# AQI Forecasting System\nReal-time air quality monitoring and prediction"
+    }
 )
 
-# Custom CSS for elegant styling
+# Custom CSS for dark theme and sophisticated styling
 st.markdown("""
 <style>
-    /* Global background to match big block styling */
-    html, body, .stApp {
-        background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%) !important;
-    }
-    /* Make the main container transparent over the page background */
-    .block-container {
-        background: transparent !important;
-        padding-top: 1rem;
-    }
-    /* Sidebar background harmonized */
-    [data-testid="stSidebar"] {
-        display: block !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        width: 18rem !important;
-        min-width: 18rem !important;
-        background: rgba(255,255,255,0.03) !important;
-        border-right: 1px solid rgba(255,255,255,0.07);
-    }
-    /* Sidebar text colors */
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] label {
-        color: #ffffff !important;
-    }
-    /* Expander header titles */
-    [data-testid="stExpander"] summary {
-        color: #ffffff !important;
-    }
-    /* Main styling */
-    .main-header {
-        background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%);
-        padding: 2.0rem;
-        border-radius: 16px;
-        margin-bottom: 1.5rem;
-        color: #e8ecf1;
-        text-align: center;
-        border: 1px solid rgba(255,255,255,0.07);
-        position: relative;
-        overflow: hidden;
+    /* Dark theme customization */
+    .main {
+        background-color: #0e1117;
+        color: #fafafa;
     }
     
-    .main-header::before { display: none; }
+    .stApp {
+        background-color: #0e1117;
+    }
+    
+    /* Header styling */
+    .main-header {
+        background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        border: 1px solid #374151;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
     
     .main-header h1 {
+        color: #fbbf24;
+        text-align: center;
+        margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     }
     
     .main-header p {
+        color: #d1d5db;
+        text-align: center;
+        margin: 0.5rem 0 0 0;
         font-size: 1.1rem;
-        opacity: 0.95;
-        font-weight: 300;
     }
     
-
-    
-    .status-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-    }
-    
-    .status-online { background-color: #00ff88; }
-    .status-offline { background-color: #ff4757; }
-    .status-warning { background-color: #ffa502; }
-    
-    .action-button {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 25px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin: 0.5rem;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .action-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-    
-    .data-section {
-        background: rgba(255,255,255,0.03);
-        padding: 1.2rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        border: 1px solid rgba(255,255,255,0.07);
-        box-shadow: none;
-        color: #e0e6ee;
-    }
-    
-    .chart-container {
-        background: rgba(255,255,255,0.03);
-        padding: 1.2rem;
-        border-radius: 12px;
-        box-shadow: none;
-        margin: 1rem 0;
-        border: 1px solid rgba(255,255,255,0.07);
-    }
-    
-    .sidebar-section {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 0.8rem 0;
-        border: 1px solid #e9ecef;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
-    
-    .sidebar-section:hover {
-        transform: translateX(4px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    .info-box {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 0.8rem 0;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .info-box::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-        transform: rotate(45deg);
-        animation: shine 3s infinite;
-    }
-    
-    @keyframes shine {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
-    .warning-box {
-        background: linear-gradient(135deg, #ffa502, #ff6348);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 0.8rem 0;
-        box-shadow: 0 4px 15px rgba(255, 165, 2, 0.3);
-    }
-    
-    .success-box {
-        background: linear-gradient(135deg, #00ff88, #00d4aa);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 0.8rem 0;
-        box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
-    }
-    
-    .metric-value {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #2c3e50;
-        margin: 0.5rem 0;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-    
-    .metric-label {
-        font-size: 0.9rem;
-        color: #7f8c8d;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        font-weight: 600;
-        margin-top: 0.5rem;
-    }
-    
-    .timestamp {
-        font-size: 0.85rem;
-        color: #95a5a6;
-        font-style: italic;
-        margin-top: 1rem;
-        padding: 0.5rem;
-        background: rgba(149, 165, 166, 0.1);
-        border-radius: 6px;
-        text-align: center;
-    }
-    
-    .section-header {
-        background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 1rem 1.5rem;
-        border-radius: 10px;
-        margin: 2rem 0 1rem 0;
-        border-left: 4px solid #667eea;
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #2c3e50;
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-    }
-    
-    .stat-item {
-        background: rgba(255,255,255,0.03);
-        padding: 1rem;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: none;
-        border: 1px solid rgba(255,255,255,0.07);
-        color: #ffffff;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #f2f6ff;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stat-label {
-        font-size: 0.8rem;
-        color: #a9b4c2;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* Ensure Streamlit default elements are visible */
-    #MainMenu {visibility: visible !important;}
-    footer {visibility: visible !important;}
-    header {visibility: visible !important;}
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #667eea;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #764ba2;
-    }
-    
-    /* Enhanced metric card styling for pollutants and weather */
+    /* Card styling */
     .metric-card {
-        background: linear-gradient(135deg, #262730 0%, #2a2d3a 100%);
-        border: 1px solid #4c78a8;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 8px 0;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border: 1px solid #374151;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-        border-color: #5a9bd4;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     }
     
-    /* Enhanced section headers for better visual hierarchy */
-    .section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 16px 24px;
-        border-radius: 12px;
-        margin: 24px 0 16px 0;
-        font-size: 1.4rem;
-        font-weight: 600;
-        text-align: center;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    /* Buttons match background theme */
+    /* Button styling */
     .stButton > button {
-        color: #2c3e50;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-radius: 8px !important;
-        padding: 12px 24px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
-        box-shadow: none !important;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, #202633 0%, #2a303c 100%) !important;
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
         transform: translateY(-1px);
-        border-color: rgba(255,255,255,0.12) !important;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
     }
     
-    /* Enhanced sidebar styling for better visibility */
+    /* Status indicators */
+    .status-healthy {
+        color: #10b981;
+        font-weight: 600;
+    }
+    
+    .status-warning {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+    
+    .status-error {
+        color: #ef4444;
+        font-weight: 600;
+    }
+    
+    /* Data table styling */
+    .dataframe {
+        background-color: #1f2937;
+        color: #f9fafb;
+        border: 1px solid #374151;
+        border-radius: 10px;
+    }
+    
+    /* Sidebar styling */
     .css-1d391kg {
-        background: linear-gradient(180deg, #1e1e2e 0%, #2a2d3a 100%);
-        border-right: 2px solid #4c78a8;
+        background-color: #111827;
     }
     
-    .css-1d391kg .css-1lcbmhc {
-        color: #fafafa !important;
-        font-weight: 600;
+    /* Progress bar styling */
+    .stProgress > div > div > div {
+        background-color: #3b82f6;
     }
     
-    /* Improved pollutant and weather data organization */
-    .pollutant-section {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 12px;
-        padding: 16px;
-        margin: 12px 0;
-        border: 1px solid #dee2e6;
+    /* Success message styling */
+    .success-message {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        border: 1px solid #34d399;
     }
     
-    .pollutant-section h4 {
-        color: #2c3e50;
-        margin-bottom: 12px;
-        font-weight: 600;
-        border-bottom: 2px solid #667eea;
-        padding-bottom: 8px;
+    /* Error message styling */
+    .error-message {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        border: 1px solid #f87171;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Configuration
-API_BASE = "http://127.0.0.1:8000"
+API_BASE_URL = "http://127.0.0.1:8000"
 REFRESH_INTERVAL = 30  # seconds
-REQUEST_DELAY = 0.5  # seconds between API calls
 
-# Initialize session state
-if 'last_api_call' not in st.session_state:
-    st.session_state.last_api_call = 0
-if 'backend_status' not in st.session_state:
-    st.session_state.backend_status = "unknown"
-if 'session_id' not in st.session_state:
-    st.session_state.session_id = f"session_{int(time.time())}"
-
-def get_aqi_category(aqi_value: float) -> tuple:
-    """Get AQI category and color based on value."""
-    if aqi_value <= 50:
-        return "Good", "#00ff88", "🟢"
-    elif aqi_value <= 100:
-        return "Moderate", "#ffff00", "🟡"
-    elif aqi_value <= 150:
-        return "Unhealthy for Sensitive Groups", "#ff8800", "🟠"
-    elif aqi_value <= 200:
-        return "Unhealthy", "#ff0000", "🔴"
-    elif aqi_value <= 300:
-        return "Very Unhealthy", "#8800ff", "🟣"
-    else:
-        return "Hazardous", "#800000", "⚫"
-
-def fmt(value: Any, decimals: int = 2) -> Any:
-    """Format numeric values to a fixed number of decimals; pass through non-numeric."""
-    try:
-        if isinstance(value, bool):
-            return value
-        num = float(value)
-        return f"{num:.{decimals}f}"
-    except Exception:
-        return value
-
-def fetch_api_data(endpoint: str, params: dict = None, method: str = "GET") -> Optional[Dict[str, Any]]:
-    """Fetch data from API with rate limiting and error handling."""
-    current_time = time.time()
-    if current_time - st.session_state.last_api_call < REQUEST_DELAY:
-        time.sleep(REQUEST_DELAY)
+class AQIForecastingApp:
+    """Main application class for AQI Forecasting System"""
     
-    try:
-        url = f"{API_BASE}{endpoint}"
-        if params and method == "GET":
-            url += "?" + "&".join([f"{k}={v}" for k, v in params.items()])
+    def __init__(self):
+        self.api_base_url = API_BASE_URL
+        self.session = requests.Session()
+        self.session.headers.update({'Content-Type': 'application/json'})
         
-        if method == "GET":
-            response = requests.get(url, timeout=15)
-        elif method == "POST":
-            response = requests.post(url, json=params if params else {}, timeout=30)
-        else:
-            st.error(f"Unsupported HTTP method: {method}")
+        # Configure session with extended timeouts and retry strategy
+        retry_strategy = requests.adapters.Retry(
+            total=5,  # Increased retries
+            backoff_factor=2,  # Increased backoff
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = requests.adapters.HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        
+    def check_api_health(self) -> bool:
+        """Check if the FastAPI backend is healthy"""
+        try:
+            response = self.session.get(f"{self.api_base_url}/health", timeout=30)
+            return response.status_code == 200
+        except Exception as e:
+            st.error(f"❌ Backend connection error: {str(e)}")
+            return False
+    
+    def ensure_connection(self) -> bool:
+        """Ensure backend connection is stable before operations"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            if self.check_api_health():
+                return True
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff
+        return False
+    
+    def get_current_data(self) -> Optional[Dict[str, Any]]:
+        """Get current AQI and weather data"""
+        try:
+            response = self.session.get(f"{self.api_base_url}/api/v1/data/current", timeout=60)
+            if response.status_code == 200:
+                return response.json()
             return None
-            
-        st.session_state.last_api_call = time.time()
-        
-        if response.status_code == 200:
+        except:
+            return None
+    
+    def get_latest_forecast(self) -> Optional[Dict[str, Any]]:
+        """Get the latest forecast data"""
+        try:
+            response = self.session.get(f"{self.api_base_url}/api/v1/forecasts/latest", timeout=60)
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except:
+            return None
+    
+    def get_system_status(self) -> Optional[Dict[str, Any]]:
+        """Get system status information"""
+        try:
+            response = self.session.get(f"{self.api_base_url}/api/v1/system/status", timeout=60)
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except:
+            return None
+    
+    def trigger_data_collection(self) -> Optional[Dict[str, Any]]:
+        """Trigger data collection job"""
+        try:
+            # Show progress indicator
+            with st.spinner("🔄 Collecting past 1 hour of data... This may take 30-60 seconds"):
+                response = self.session.post(f"{self.api_base_url}/api/v1/jobs/quick/collect", timeout=300)  # 5 minutes
+                if response.status_code == 200:
+                    st.success("✅ Data collection completed successfully!")
+                    return response.json()
+                else:
+                    st.error(f"❌ Data collection failed with status: {response.status_code}")
+                    return None
+        except Exception as e:
+            st.error(f"❌ Data collection error: {str(e)}")
+            return None
+    
+    def trigger_data_processing(self) -> Optional[Dict[str, Any]]:
+        """Trigger data processing job"""
+        try:
+            # Show progress indicator
+            with st.spinner("🔄 Starting data processing... This may take 2-3 minutes"):
+                response = self.session.post(f"{self.api_base_url}/api/v1/jobs/quick/process", timeout=600)  # 10 minutes
+                if response.status_code == 200:
+                    st.success("✅ Data processing completed successfully!")
+                    return response.json()
+                else:
+                    st.error(f"❌ Data processing failed with status: {response.status_code}")
+                    return None
+        except Exception as e:
+            st.error(f"❌ Data processing error: {str(e)}")
+            return None
+    
+    def trigger_forecasting(self) -> Optional[Dict[str, Any]]:
+        """Trigger forecasting job"""
+        try:
+            response = self.session.post(f"{self.api_base_url}/api/v1/jobs/quick/forecast", timeout=600)  # 10 minutes
             return response.json()
-        else:
-            st.error(f"API Error {response.status_code}: {response.text}")
+        except:
             return None
-            
-    except requests.exceptions.ConnectionError:
-        st.error("❌ Backend Connection Failed - Is the server running?")
-        st.session_state.backend_status = "offline"
-        return None
-    except requests.exceptions.Timeout:
-        st.error("⏰ Request Timeout - Backend may be slow")
-        return None
-    except Exception as e:
-        st.error(f"❌ Unexpected Error: {str(e)}")
-        return None
 
-def get_backend_health_status() -> str:
-    """Check backend health status."""
-    try:
-        response = requests.get(f"{API_BASE}/health", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            health_score = data.get('health_score', 0)
-            if health_score >= 75:
-                return "healthy"
-            elif health_score >= 50:
-                return "degraded"
-            else:
-                return "unhealthy"
+def create_aqi_gauge(value: float, category: str) -> go.Figure:
+    """Create a beautiful AQI gauge chart"""
+    # Color mapping based on AQI category
+    color_map = {
+        "Good": "#00e400",
+        "Moderate": "#ffff00", 
+        "Unhealthy for Sensitive Groups": "#ff7e00",
+        "Unhealthy": "#ff0000",
+        "Very Unhealthy": "#8f3f97",
+        "Hazardous": "#7e0023"
+    }
+    
+    color = color_map.get(category, "#00e400")
+    
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number+delta",
+        value=value,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': "Current AQI", 'font': {'size': 24, 'color': '#f9fafb'}},
+        delta={'reference': 100, 'font': {'size': 16}},
+        gauge={
+            'axis': {'range': [None, 500], 'tickwidth': 1, 'tickcolor': "#374151"},
+            'bar': {'color': color, 'thickness': 0.3},
+            'bgcolor': "#1f2937",
+            'borderwidth': 2,
+            'bordercolor': "#374151",
+            'steps': [
+                {'range': [0, 50], 'color': '#00e400'},
+                {'range': [51, 100], 'color': '#ffff00'},
+                {'range': [101, 150], 'color': '#ff7e00'},
+                {'range': [151, 200], 'color': '#ff0000'},
+                {'range': [201, 300], 'color': '#8f3f97'},
+                {'range': [301, 500], 'color': '#7e0023'}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': 300
+            }
+        }
+    ))
+    
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "#f9fafb"},
+        height=400
+    )
+    
+    return fig
+
+
+
+def create_forecast_chart(forecast_data: Dict[str, Any]) -> go.Figure:
+    """Create a forecast visualization chart"""
+    if not forecast_data or 'forecasts' not in forecast_data:
+        return go.Figure()
+    
+    forecasts = forecast_data['forecasts']
+    if not forecasts:
+        return go.Figure()
+    
+    # Extract data for plotting
+    hours_ahead = [f['hours_ahead'] for f in forecasts]
+    values = [f['forecast_value'] for f in forecasts]
+    models = [f['model_used'] for f in forecasts]
+    
+    # Create the main forecast line
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=hours_ahead,
+        y=values,
+        mode='lines+markers',
+        name='AQI Forecast',
+        line=dict(color='#3b82f6', width=4),
+        marker=dict(size=8, color='#3b82f6'),
+        hovertemplate='<b>Hour %{x}</b><br>AQI: %{y:.1f}<extra></extra>'
+    ))
+    
+    # Add trend line
+    if len(hours_ahead) > 1:
+        z = np.polyfit(hours_ahead, values, 1)
+        p = np.poly1d(z)
+        trend_line = p(hours_ahead)
+        
+        fig.add_trace(go.Scatter(
+            x=hours_ahead,
+            y=trend_line,
+            mode='lines',
+            name='Trend Line',
+            line=dict(color='#f59e0b', width=2, dash='dash'),
+            hovertemplate='<b>Trend</b><br>AQI: %{y:.1f}<extra></extra>'
+        ))
+    
+    # Add model transition markers
+    unique_models = list(set(models))
+    for model in unique_models:
+        model_indices = [i for i, m in enumerate(models) if m == model]
+        if model_indices:
+            fig.add_trace(go.Scatter(
+                x=[hours_ahead[i] for i in model_indices],
+                y=[values[i] for i in model_indices],
+                mode='markers',
+                name=f'{model.upper()} Model',
+                marker=dict(size=12, symbol='diamond'),
+                hovertemplate=f'<b>{model.upper()}</b><br>Hour %{{x}}<br>AQI: %{{y:.1f}}<extra></extra>'
+            ))
+    
+    fig.update_layout(
+        title="72-Hour AQI Forecast with Trend Analysis",
+        title_font={'size': 20, 'color': '#f9fafb'},
+        xaxis_title="Hours Ahead",
+        yaxis_title="Predicted AQI",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "#f9fafb"},
+        xaxis={'gridcolor': '#374151'},
+        yaxis={'gridcolor': '#374151'},
+        height=500,
+        showlegend=True,
+        legend=dict(
+            bgcolor='rgba(0,0,0,0.8)',
+            bordercolor='#374151',
+            borderwidth=1
+        )
+    )
+    
+    return fig
+
+def create_weather_chart(weather: Dict[str, float]) -> go.Figure:
+    """Create a weather conditions chart"""
+    if not weather:
+        return go.Figure()
+    
+    # Create subplots for different weather parameters
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=[],  # Remove subplot titles to avoid duplication
+        specs=[[{"type": "indicator"}, {"type": "indicator"}],
+               [{"type": "indicator"}, {"type": "indicator"}]]
+    )
+    
+    weather_items = list(weather.items())
+    colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+    
+    for i, (param, value) in enumerate(weather_items[:4]):
+        row = (i // 2) + 1
+        col = (i % 2) + 1
+        
+        # Create clean, clear titles for each weather parameter
+        if param == 'temperature':
+            title_text = f"Temperature (°C)"
+            gauge_range = [-20, 50]
+        elif param == 'humidity':
+            title_text = f"Humidity (%)"
+            gauge_range = [0, 100]
+        elif param == 'pressure':
+            title_text = f"Pressure (hPa)"
+            gauge_range = [800, 1200]
+        elif param == 'wind_speed':
+            title_text = f"Wind Speed (m/s)"
+            gauge_range = [0, 30]
         else:
-            return "unhealthy"
-    except:
-        return "offline"
-
-
+            title_text = param.replace('_', ' ').title()
+            gauge_range = [0, 100]
+        
+        # Add gauge for temperature and humidity, number for others
+        if param in ['temperature', 'humidity']:
+            fig.add_trace(go.Indicator(
+                mode="gauge+number",
+                value=value,
+                title={'text': title_text, 'font': {'size': 14, 'color': '#f9fafb'}},
+                gauge={
+                    'axis': {'range': gauge_range, 'tickwidth': 1, 'tickcolor': "#374151"},
+                    'bar': {'color': colors[i]},
+                    'bgcolor': "#1f2937",
+                    'borderwidth': 2,
+                    'bordercolor': "#374151",
+                    'steps': [
+                        {'range': [gauge_range[0], gauge_range[1]], 'color': colors[i]}
+                    ]
+                },
+                domain={'row': row, 'column': col}
+            ), row=row, col=col)
+        else:
+            fig.add_trace(go.Indicator(
+                mode="number+delta",
+                value=value,
+                title={'text': title_text, 'font': {'size': 14, 'color': '#f9fafb'}},
+                delta={'reference': gauge_range[1]/2, 'font': {'size': 12}},
+                domain={'row': row, 'column': col}
+            ), row=row, col=col)
+    
+    # Update layout with better spacing and clear title
+    fig.update_layout(
+        title={
+            'text': "Current Weather Conditions",
+            'font': {'size': 20, 'color': '#f9fafb'},
+            'x': 0.5,
+            'xanchor': 'center'
+        },
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "#f9fafb"},
+        height=500,
+        margin=dict(t=80, l=20, r=20, b=20),
+        showlegend=False
+    )
+    
+    # Update subplot layout for better spacing
+    fig.update_xaxes(showgrid=False, showticklabels=False)
+    fig.update_yaxes(showgrid=False, showticklabels=False)
+    
+    return fig
 
 def main():
-    # Header
+    """Main application function"""
     st.markdown("""
     <div class="main-header">
-        <h1>🌤️ AQI Forecasting Dashboard</h1>
-        <p style="margin: 0; opacity: 0.9;">Real-time Air Quality Index Monitoring & Prediction System</p>
+        <h1>🌤️ AQI Forecasting System</h1>
+        <p>Real-time Air Quality Monitoring & Prediction Platform</p>
+        <p style="font-size: 0.9rem; color: #9ca3af; margin-top: 0.5rem;">🕒 All timestamps are displayed in UTC (Coordinated Universal Time)</p>
     </div>
     """, unsafe_allow_html=True)
     
+    # Initialize app
+    app = AQIForecastingApp()
+    
     # Sidebar
     with st.sidebar:
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <h2>🔧 System Control</h2>
-            <p style="color: #7f8c8d; font-size: 0.9rem;">Manage your AQI forecasting system</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("## 🎛️ Control Panel")
+        st.markdown("---")
         
-        # Backend Status
-        backend_status = get_backend_health_status()
-        st.session_state.backend_status = backend_status
+        # Smart API Status with auto-reconnection
+        st.markdown("### 🔌 Connection Status")
+        api_healthy = app.check_api_health()
         
-        status_color = {
-            "healthy": "🟢",
-            "degraded": "🟡", 
-            "unhealthy": "🔴",
-            "offline": "⚫"
-        }.get(backend_status, "⚪")
+        if api_healthy:
+            st.success("✅ Backend Connected")
+            st.info("All systems operational")
+        else:
+            st.error("❌ Backend Disconnected")
+            st.warning("Attempting to reconnect...")
+            
+            # Try to reconnect
+            if st.button("🔄 Reconnect", key="reconnect_btn"):
+                if app.ensure_connection():
+                    st.success("✅ Reconnected successfully!")
+                    st.rerun()
+                else:
+                    st.error("❌ Reconnection failed")
+                    st.info("Please check if the backend is running")
+            
+            # Show troubleshooting tips
+            with st.expander("🔧 Troubleshooting"):
+                st.markdown("""
+                **Backend Connection Issues:**
+                1. Ensure FastAPI backend is running on port 8000
+                2. Check if there are any error messages in the backend terminal
+                3. Try refreshing the page
+                4. Restart the backend if necessary
+                """)
+            
+            # Don't return immediately, allow reconnection attempts
+            if not app.ensure_connection():
+                st.stop()
         
-        status_bg = {
-            "healthy": "rgba(0, 255, 136, 0.1)",
-            "degraded": "rgba(255, 165, 2, 0.1)",
-            "unhealthy": "rgba(255, 71, 87, 0.1)",
-            "offline": "rgba(0, 0, 0, 0.1)"
-        }.get(backend_status, "rgba(149, 165, 166, 0.1)")
-        
-        st.markdown(f"""
-        <div class="sidebar-section" style="background: {status_bg}; border-left: 4px solid {'#00ff88' if backend_status == 'healthy' else '#ffa502' if backend_status == 'degraded' else '#ff4757' if backend_status == 'unhealthy' else '#95a5a6'};">
-            <h4 style="margin: 0 0 0.5rem 0;">Backend Status</h4>
-            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{status_color} {backend_status.title()}</p>
-            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #7f8c8d;">
-                Last checked: {datetime.now().strftime('%H:%M:%S')}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("---")
         
         # Action Buttons
         st.markdown("### 📊 Data Operations")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Collect", use_container_width=True, help="Collect new air quality data"):
-                st.info("Starting data collection...")
-                result = fetch_api_data("/collect", method="POST")
-                if result is not None:
-                    rows_collected = result.get('rows_collected', 0)
-                    rows_added = result.get('rows_added', 0)
-                    last_ts = result.get('last_timestamp')
-                    message = f"✅ Collected {rows_collected} rows, added {rows_added}"
-                    if last_ts:
-                        message += f" | Last: {last_ts}"
-                    st.success(message)
+        if st.button("🔄 Collect Data (1 Hour)", use_container_width=True):
+            with st.spinner("Triggering data collection..."):
+                result = app.trigger_data_collection()
+                if result and result.get('success'):
+                    st.success("✅ Data collection job started! (Collecting past 1 hour)")
                 else:
-                    st.error("❌ Data collection failed")
+                    st.error("❌ Failed to start data collection")
         
-        with col2:
-            if st.button("🔮 Forecast", use_container_width=True, help="Run AQI forecast for next 72 hours"):
-                st.info("Starting AQI forecast...")
-                result = fetch_api_data("/forecast", method="POST")
-                if result and result.get("success"):
-                    st.success("✅ Forecast completed successfully")
+        if st.button("⚙️ Process Data", use_container_width=True):
+            # Check connection first
+            if not app.ensure_connection():
+                st.error("❌ Cannot connect to backend")
+                return
+                
+            # Create a progress container
+            progress_container = st.container()
+            status_container = st.container()
+            
+            with progress_container:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+            # Simulate progress for long-running operation
+            for i in range(101):
+                time.sleep(0.05)  # Small delay to show progress
+                progress_bar.progress(i)
+                if i < 20:
+                    status_text.text("🔄 Initializing data processing...")
+                elif i < 40:
+                    status_text.text("📊 Loading and validating data...")
+                elif i < 60:
+                    status_text.text("🔧 Feature engineering in progress...")
+                elif i < 80:
+                    status_text.text("⚙️ Applying transformations...")
+                elif i < 100:
+                    status_text.text("💾 Saving processed data...")
                 else:
-                    st.error("❌ Forecast failed")
-        
-        # Pipeline Button
-        if st.button("🚀 Full Pipeline", use_container_width=True, help="Run complete data collection and preprocessing pipeline"):
-            st.info("Starting complete pipeline...")
-            result = fetch_api_data("/pipeline/collect-and-prep", method="POST")
-            if result:
-                st.success(f"✅ Pipeline started - Job ID: {result.get('job_id', 'Unknown')}")
-            else:
-                st.error("❌ Pipeline failed to start")
-        
-        # Settings Section
-        st.markdown("### ⚙️ Settings")
-        
-        with st.expander("🔄 Auto-refresh Settings", expanded=False):
-            auto_refresh = st.checkbox("Enable auto-refresh", value=True, help="Automatically refresh data at specified intervals")
-            refresh_interval = st.slider("Refresh interval (seconds)", 10, 60, 30, help="How often to refresh the dashboard")
+                    status_text.text("✅ Finalizing...")
             
-            if auto_refresh:
-                st.success(f"🔄 Auto-refresh enabled every {refresh_interval} seconds")
-            else:
-                st.info("⏸️ Auto-refresh disabled")
-        
-        # System Information
-        with st.expander("ℹ️ System Information", expanded=False):
-            st.write(f"**API Base:** {API_BASE}")
-            st.write(f"**Last API Call:** {datetime.fromtimestamp(st.session_state.last_api_call).strftime('%H:%M:%S') if st.session_state.last_api_call > 0 else 'Never'}")
-            st.write(f"**Backend Status:** {backend_status}")
-            st.write(f"**Session ID:** {st.session_state.session_id}")
-            
-            # Add refresh button
-            if st.button("🔄 Refresh Status", use_container_width=True):
-                st.rerun()
-        
-        # Debug Information
-        with st.expander("🔍 Debug Information", expanded=False):
-            st.write(f"**API Base:** {API_BASE}")
-            st.write(f"**Last API Call:** {datetime.fromtimestamp(st.session_state.last_api_call).strftime('%H:%M:%S') if st.session_state.last_api_call > 0 else 'Never'}")
-            st.write(f"**Backend Status:** {backend_status}")
-            st.write(f"**Request Delay:** {REQUEST_DELAY}s")
-            st.write(f"**Refresh Interval:** {REFRESH_INTERVAL}s")
-            
-            # Test connection button
-            if st.button("🧪 Test Connection", use_container_width=True):
-                health_data = fetch_api_data("/health")
-                if health_data:
-                    st.success("✅ Backend connection successful")
-                    st.json(health_data)
+            # Trigger the actual job
+            with status_container:
+                result = app.trigger_data_processing()
+                if result and result.get('success'):
+                    st.success("✅ Data processing completed successfully!")
                 else:
-                    st.error("❌ Backend connection failed")
+                    st.error("❌ Data processing failed")
+            
+            # Clear progress indicators
+            progress_container.empty()
+            status_container.empty()
         
-        # Footer in sidebar
+        if st.button("🔮 Generate Forecast", use_container_width=True):
+            with st.spinner("Generating forecast..."):
+                result = app.trigger_forecasting()
+                if result and result.get('success'):
+                    st.success("✅ Forecasting job started!")
+                else:
+                    st.error("❌ Failed to start forecasting")
+        
         st.markdown("---")
-        st.markdown("""
-        <div style="text-align: center; color: #7f8c8d; font-size: 0.8rem; padding: 1rem;">
-            <p>🌤️ AQI Forecasting</p>
-            <p>v1.0.0</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Main content area - Organized Data Dashboard
-    st.markdown('<div class="section-header">📊 Current Environmental Data Dashboard</div>', unsafe_allow_html=True)
-    
-    # Fetch all data
-    aqi_data = fetch_api_data("/aqi/latest")
-    weather_data = fetch_api_data("/weather/latest")
-    pollutant_data = fetch_api_data("/pollutants/latest")
-    
-    # Create organized data table
-    if aqi_data or weather_data or pollutant_data:
-        # Prepare data for the table
-        data_rows = []
         
-        # AQI Section
-        if aqi_data:
-            aqi_value = aqi_data.get('aqi_24h', 0)
-            category, color, icon = get_aqi_category(aqi_value)
-            data_rows.append({
-                "Category": "🌡️ Air Quality Index",
-                "Parameter": "AQI 24h",
-                "Value": f"{fmt(aqi_value)}",
-                "Unit": f"{icon} {category}",
-                "Status": "🟢 Active"
-            })
+        # Auto-refresh toggle
+        auto_refresh = st.checkbox("🔄 Auto-refresh", value=True, help="Automatically refresh data every 30 seconds")
+        
+        # Manual refresh
+        if st.button("🔄 Refresh Now", use_container_width=True):
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # System Info
+        st.markdown("### ℹ️ System Info")
+        system_status = app.get_system_status()
+        if system_status and system_status.get('success'):
+            data = system_status.get('data', {})
+            overall_status = data.get('overall_status', 'unknown')
             
-            if aqi_data.get('timestamp'):
-                data_rows.append({
-                    "Category": "📅 Data Timestamp",
-                    "Parameter": "Last Update",
-                    "Value": datetime.fromisoformat(aqi_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S'),
-                    "Unit": "Local Time",
-                    "Status": "🟢 Current"
-                })
-        
-        # Weather Section
-        if weather_data:
-            weather_params = [
-                ("🌡️ Temperature", "temperature", "°C", "Celsius"),
-                ("💧 Humidity", "relative_humidity", "%", "Relative"),
-                ("💨 Wind Speed", "wind_speed", "m/s", "Meters/Second"),
-                ("🌪️ Pressure", "pressure", "hPa", "Hectopascals"),
-                ("💦 Dew Point", "dew_point", "°C", "Celsius"),
-                ("🧭 Wind Direction", "wind_direction", "°", "Degrees"),
-                ("🌧️ Precipitation", "precipitation", "mm", "Millimeters")
-            ]
-            
-            for icon_name, param, unit, description in weather_params:
-                value = weather_data.get(param, 'N/A')
-                if value != 'N/A':
-                    data_rows.append({
-                        "Category": icon_name,
-                        "Parameter": description,
-                        "Value": f"{fmt(value)}",
-                        "Unit": unit,
-                        "Status": "🟢 Active"
-                    })
-        
-        # Pollutants Section
-        if pollutant_data:
-            pollutant_params = [
-                ("🌫️ PM2.5", "pm2_5", "μg/m³", "Fine Particles"),
-                ("🌫️ PM10", "pm10", "μg/m³", "Coarse Particles"),
-                ("☁️ Ozone", "o3_ppb", "ppb", "Ozone"),
-                ("🚗 NO₂", "no2_ppb", "ppb", "Nitrogen Dioxide"),
-                ("🔥 CO", "co_ppm", "ppm", "Carbon Monoxide"),
-                ("🏭 SO₂", "so2_ppb", "ppb", "Sulfur Dioxide"),
-                ("🧪 NH₃", "nh3", "μg/m³", "Ammonia")
-            ]
-            
-            for icon_name, param, unit, description in pollutant_params:
-                value = pollutant_data.get(param, 'N/A')
-                if value != 'N/A':
-                    data_rows.append({
-                        "Category": icon_name,
-                        "Parameter": description,
-                        "Value": f"{fmt(value)}",
-                        "Unit": unit,
-                        "Status": "🟢 Active"
-                    })
-        
-        # Single elegant big block
-        st.markdown("""
-        <style>
-        /* Match app theme: subtle indigo/purple gradient and soft borders */
-        .big-block { 
-          background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 16px; padding: 18px 20px; 
-          box-shadow: 0 10px 30px rgba(0,0,0,.25);
-        }
-        .bb-header { 
-          display:flex; align-items:center; justify-content:space-between; gap:16px; 
-          border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom:12px; margin-bottom:14px; 
-        }
-        .bb-title { display:flex; align-items:center; gap:10px; color:#e8ecf1; font-weight:700; letter-spacing:.3px; }
-        .bb-aqi { font-size:2rem; font-weight:800; }
-        .bb-aqi .cat { font-size:.9rem; color:#c0c7d1; margin-left:8px; }
-        .bb-body { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-        .bb-section { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:14px; }
-        .bb-section h4 { margin:0 0 10px 0; font-size:1rem; color:#e0e6ee; font-weight:700; }
-        .kv-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
-        .kv { background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px; }
-        .kv .k { color:#a9b4c2; font-size:.8rem; margin-bottom:4px; }
-        .kv .v { color:#f2f6ff; font-size:1.05rem; font-weight:700; }
-        @media (max-width: 900px) { .bb-body { grid-template-columns: 1fr; } }
-        </style>
-        """, unsafe_allow_html=True)
-
-        # Build header
-        if aqi_data:
-            aqi_value = aqi_data.get('aqi_24h', 0)
-            category, color, icon = get_aqi_category(aqi_value)
-            ts_html = ""
-            if aqi_data.get('timestamp'):
-                ts_html = f"<div class=\"kv\"><div class=\"k\">Last Update</div><div class=\"v\">{datetime.fromisoformat(aqi_data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')}</div></div>"
-            st.markdown(f"""
-            <div class="big-block">
-              <div class="bb-header">
-                <div class="bb-title">🌤️ AQI Forecasting Dashboard</div>
-                <div class="bb-aqi" style="color:{color};">{fmt(aqi_value)}<span class="cat">{icon} {category}</span></div>
-              </div>
-              <div class="bb-body">
-                <div class="bb-section">
-                  <h4>🌤️ Weather</h4>
-                  <div class="kv-grid">
-                    {f'<div class="kv"><div class="k">Temperature</div><div class="v">{fmt(weather_data.get("temperature"))}°C</div></div>' if weather_data and weather_data.get('temperature') is not None else ''}
-                    {f'<div class="kv"><div class="k">Humidity</div><div class="v">{fmt(weather_data.get("relative_humidity"))}%</div></div>' if weather_data and weather_data.get('relative_humidity') is not None else ''}
-                    {f'<div class="kv"><div class="k">Wind Speed</div><div class="v">{fmt(weather_data.get("wind_speed"))} m/s</div></div>' if weather_data and weather_data.get('wind_speed') is not None else ''}
-                    {f'<div class="kv"><div class="k">Wind Direction</div><div class="v">{fmt(weather_data.get("wind_direction"))}°</div></div>' if weather_data and weather_data.get('wind_direction') is not None else ''}
-                    {f'<div class="kv"><div class="k">Pressure</div><div class="v">{fmt(weather_data.get("pressure"))} hPa</div></div>' if weather_data and weather_data.get('pressure') is not None else ''}
-                    {f'<div class="kv"><div class="k">Dew Point</div><div class="v">{fmt(weather_data.get("dew_point"))}°C</div></div>' if weather_data and weather_data.get('dew_point') is not None else ''}
-                    {f'<div class="kv"><div class="k">Precipitation</div><div class="v">{fmt(weather_data.get("precipitation"))} mm</div></div>' if weather_data and weather_data.get('precipitation') is not None else ''}
-                    {ts_html}
-                  </div>
-                </div>
-                <div class="bb-section">
-                  <h4>🏭 Pollutants</h4>
-                  <div class="kv-grid">
-                    {f'<div class="kv"><div class="k">PM2.5</div><div class="v">{fmt(pollutant_data.get("pm2_5"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('pm2_5') is not None else ''}
-                    {f'<div class="kv"><div class="k">PM10</div><div class="v">{fmt(pollutant_data.get("pm10"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('pm10') is not None else ''}
-                    {f'<div class="kv"><div class="k">O₃</div><div class="v">{fmt(pollutant_data.get("o3_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('o3_ppb') is not None else ''}
-                    {f'<div class="kv"><div class="k">NO₂</div><div class="v">{fmt(pollutant_data.get("no2_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('no2_ppb') is not None else ''}
-                    {f'<div class="kv"><div class="k">CO</div><div class="v">{fmt(pollutant_data.get("co_ppm"))} ppm</div></div>' if pollutant_data and pollutant_data.get('co_ppm') is not None else ''}
-                    {f'<div class="kv"><div class="k">SO₂</div><div class="v">{fmt(pollutant_data.get("so2_ppb"))} ppb</div></div>' if pollutant_data and pollutant_data.get('so2_ppb') is not None else ''}
-                    {f'<div class="kv"><div class="k">NH₃</div><div class="v">{fmt(pollutant_data.get("nh3"))} μg/m³</div></div>' if pollutant_data and pollutant_data.get('nh3') is not None else ''}
-                  </div>
-                </div>
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.error("❌ Unable to fetch environmental data")
-    else:
-        st.error("❌ Unable to fetch environmental data")
-    
-    # AQI History Chart
-    st.markdown('<div class="section-header" style="color:#ffffff;">📈 AQI Historical Trends (Last 72 Hours)</div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        chart_container = st.container()
-        
-        with chart_container:
-            aqi_history = fetch_api_data("/aqi/history", {"hours": 72})
-            
-            if aqi_history and aqi_history.get('data'):
-                data = aqi_history['data']
-                
-                if data:
-                    # Prepare data for plotting
-                    timestamps = []
-                    aqi_values = []
-                    
-                    for point in data:
-                        try:
-                            timestamp = datetime.fromisoformat(point['timestamp'].replace('Z', '+00:00'))
-                            aqi = point.get('aqi_24h', 0)
-                            if aqi is not None:
-                                timestamps.append(timestamp)
-                                aqi_values.append(aqi)
-                        except:
-                            continue
-                    
-                    if timestamps and aqi_values:
-                        # Create Plotly chart
-                        fig = go.Figure()
-                        
-                        # Add AQI line
-                        fig.add_trace(go.Scatter(
-                            x=timestamps,
-                            y=aqi_values,
-                            mode='lines+markers',
-                            name='AQI 24h',
-                            line=dict(color='#667eea', width=3),
-                            marker=dict(size=6, color='#667eea'),
-                            fill='tonexty',
-                            fillcolor='rgba(102, 126, 234, 0.1)'
-                        ))
-                        
-                        # Update layout
-                        fig.update_layout(
-                            title="AQI Trends (Last 72 Hours)",
-                            xaxis_title="Time",
-                            yaxis_title="AQI Value",
-                            hovermode='x unified',
-                            template='plotly_white',
-                            height=450,
-                            showlegend=True,
-                            margin=dict(l=50, r=50, t=50, b=50),
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            font=dict(size=12)
-                        )
-                        
-                        # Add AQI category lines
-                        fig.add_hline(y=50, line_dash="dash", line_color="green", annotation_text="Good", line_width=2)
-                        fig.add_hline(y=100, line_dash="dash", line_color="yellow", annotation_text="Moderate", line_width=2)
-                        fig.add_hline(y=150, line_dash="dash", line_color="orange", annotation_text="Unhealthy", line_width=2)
-                        fig.add_hline(y=200, line_dash="dash", line_color="red", annotation_text="Very Unhealthy", line_width=2)
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Data summary
-                        st.markdown(f"""
-                        <div class="data-section" style="color:#ffffff;">
-                            <h4 style="color:#ffffff;">📊 Data Summary</h4>
-                            <div class="stats-grid">
-                                <div class="stat-item">
-                                    <div class="stat-value">{len(data)}</div>
-                                    <div class="stat-label">Data Points</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">{timestamps[0].strftime('%m/%d')}</div>
-                                    <div class="stat-label">Start Date</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">{timestamps[-1].strftime('%m/%d')}</div>
-                                    <div class="stat-label">End Date</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">{(lambda v: f"{v:.2f}")(aqi_values[-1]) if aqi_values else 'N/A'}</div>
-                                    <div class="stat-label">Current AQI</div>
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown('<div class="warning-box">⚠️ No valid AQI data points found</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="info-box">ℹ️ No AQI history data available for the last 72 hours. Try collecting new data first.</div>', unsafe_allow_html=True)
+            if overall_status == 'healthy':
+                st.markdown('<span class="status-healthy">🟢 System Healthy</span>', unsafe_allow_html=True)
+            elif overall_status == 'warning':
+                st.markdown('<span class="status-warning">🟡 System Warning</span>', unsafe_allow_html=True)
             else:
-                st.markdown('<div class="warning-box">⚠️ Unable to fetch AQI history data - check backend connection</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<h3 style="color:#ffffff; margin-top:0;">📊 Quick Stats</h3>', unsafe_allow_html=True)
+                st.markdown('<span class="status-error">🔴 System Degraded</span>', unsafe_allow_html=True)
         
-        if aqi_history and aqi_history.get('data'):
-            data = aqi_history['data']
-            if data:
-                # Calculate statistics
-                aqi_values = [point.get('aqi_24h', 0) for point in data if point.get('aqi_24h') is not None]
-                
-                if aqi_values:
-                    avg_aqi = sum(aqi_values) / len(aqi_values)
-                    min_aqi = min(aqi_values)
-                    max_aqi = max(aqi_values)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value">{avg_aqi:.2f}</div>
-                        <div class="stat-label">Average AQI</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value">{min_aqi:.2f}</div>
-                        <div class="stat-label">Min AQI</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value">{max_aqi:.2f}</div>
-                        <div class="stat-label">Max AQI</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # AQI distribution
-                    st.markdown("**AQI Distribution:**")
-                    good_count = sum(1 for aqi in aqi_values if aqi <= 50)
-                    moderate_count = sum(1 for aqi in aqi_values if 51 <= aqi <= 100)
-                    unhealthy_count = sum(1 for aqi in aqi_values if aqi > 100)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value" style="color: #00ff88;">{good_count}</div>
-                        <div class="stat-label">🟢 Good</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value" style="color: #ffa502;">{moderate_count}</div>
-                        <div class="stat-label">🟡 Moderate</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(f"""
-                    <div class="stat-item">
-                        <div class="stat-value" style="color: #ff4757;">{unhealthy_count}</div>
-                        <div class="stat-label">🔴 Unhealthy</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # Data Status
+        st.markdown("### 📊 Data Status")
+        st.info("🕒 **Note:** All timestamps are displayed in UTC time")
+        current_data = app.get_current_data()
+        if current_data and current_data.get('success'):
+            st.success("✅ Data Available")
+            timestamp = current_data.get('timestamp', 'Unknown')
+            if timestamp != 'Unknown':
+                st.info(f"Last Update: {timestamp} UTC")
+            else:
+                st.info(f"Last Update: {timestamp}")
+        else:
+            st.warning("⚠️ No Data Available")
+            st.info("Click 'Collect Data (1 Hour)' to start")
     
-    # Recent Activity Section
-    st.markdown('<div class="section-header">📋 Recent Activity</div>', unsafe_allow_html=True)
+    # Main content area
     
-    col1, col2 = st.columns(2)
+    # Connection Health Banner
+    if not api_healthy:
+        st.error("""
+        🚨 **Backend Connection Lost**
+        
+        The system is experiencing connection issues with the backend. 
+        Some features may not work properly. Please check the sidebar for reconnection options.
+        """)
+    
+    col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown('<h3 style="color:#ffffff;">🔄 Latest Jobs</h3>', unsafe_allow_html=True)
-        # This would show recent job statuses if implemented
-        st.markdown('<div class="info-box" style="color: #ffffff">🚀 Job monitoring feature coming soon...</div>', unsafe_allow_html=True)
+        st.markdown("## 📊 Current AQI Status")
+        
+        # Get current data
+        current_data = app.get_current_data()
+        
+        if current_data and current_data.get('success'):
+            data = current_data
+            aqi_value = data.get('aqi_value', 0)
+            aqi_category = data.get('aqi_category', 'Unknown')
+            pollutants = data.get('pollutants', {})
+            weather = data.get('weather', {})
+            timestamp = data.get('timestamp', 'Unknown')
+            
+            # AQI Gauge
+            aqi_gauge = create_aqi_gauge(aqi_value, aqi_category)
+            st.plotly_chart(aqi_gauge, use_container_width=True)
+            
+            # Status cards
+            col_a, col_b, col_c = st.columns(3)
+            
+            with col_a:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>📈 AQI Value</h3>
+                    <h2 style="color: #fbbf24; font-size: 2rem;">{aqi_value:.1f}</h2>
+                    <p style="color: #d1d5db;">{aqi_category}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_b:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>🕒 Last Updated (UTC)</h3>
+                    <p style="color: #d1d5db; font-size: 1.1rem;">{timestamp} UTC</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_c:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>🌡️ Weather</h3>
+                    <p style="color: #d1d5db; font-size: 1.1rem;">{len(weather)} parameters</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+        else:
+            st.error("❌ Unable to retrieve current data")
+            st.info("**To get started with AQI data:**")
+            st.info("1. **Click '🔄 Collect Data'** in the sidebar")
+            st.info("2. **Wait for collection to complete** (check job status)")
+            st.info("3. **Click '🔄 Refresh Now'** to see the data")
+            st.info("4. **Data will appear here automatically**")
+            st.info("")
+            st.info("**Make sure:**")
+            st.info("• FastAPI backend is running on port 8000")
+            st.info("• Data collection scripts are accessible")
+            st.info("• Required data files exist in the system")
     
     with col2:
-        st.markdown('<h3 style="color:#ffffff;">📈 Latest Forecasts</h3>', unsafe_allow_html=True)
-        # This would show recent forecasts if implemented
-        st.markdown('<div class="info-box" style="color: #ffffff">🔮 Forecast history feature coming soon...</div>', unsafe_allow_html=True)
+        st.markdown("## 🌡️ Weather Conditions")
+        
+        if current_data and current_data.get('success'):
+            weather = current_data.get('weather', {})
+            if weather:
+                # Display weather data in a cleaner format
+                st.markdown("### Current Weather Data")
+                
+                # Create a simple display of key weather parameters
+                weather_cols = st.columns(2)
+                for i, (param, value) in enumerate(weather.items()):
+                    col_idx = i % 2
+                    with weather_cols[col_idx]:
+                        if param == 'temperature':
+                            st.metric("🌡️ Temperature", f"{value:.1f}°C")
+                        elif param == 'humidity':
+                            st.metric("💧 Humidity", f"{value:.1f}%")
+                        elif param == 'pressure':
+                            st.metric("🌪️ Pressure", f"{value:.1f} hPa")
+                        elif param == 'wind_speed':
+                            st.metric("💨 Wind Speed", f"{value:.1f} m/s")
+                        else:
+                            st.metric(f"📊 {param.replace('_', ' ').title()}", f"{value:.1f}")
+                
+                # Display pollutant data instead of weather chart
+                st.markdown("### Current Pollutant Levels")
+                
+                if current_data and current_data.get('success'):
+                    data = current_data
+                    pollutants = data.get('pollutants', {})
+                    
+                    if pollutants and len(pollutants) > 0:
+                        # Create pollutant metrics in a clean format
+                        pollutant_cols = st.columns(2)
+                        for i, (pollutant, value) in enumerate(pollutants.items()):
+                            col_idx = i % 2
+                            with pollutant_cols[col_idx]:
+                                # Add appropriate emojis for each pollutant
+                                if 'PM2.5' in pollutant or 'pm2_5' in pollutant.lower():
+                                    st.metric("🟢 PM2.5", f"{value:.1f} μg/m³")
+                                elif 'PM10' in pollutant or 'pm10' in pollutant.lower():
+                                    st.metric("🟡 PM10", f"{value:.1f} μg/m³")
+                                elif 'NO2' in pollutant or 'no2' in pollutant.lower():
+                                    st.metric("🔴 NO₂", f"{value:.1f} ppb")
+                                elif 'SO2' in pollutant or 'so2' in pollutant.lower():
+                                    st.metric("🟣 SO₂", f"{value:.1f} ppb")
+                                elif 'CO' in pollutant or 'co' in pollutant.lower():
+                                    st.metric("🟠 CO", f"{value:.1f} ppm")
+                                elif 'O3' in pollutant or 'o3' in pollutant.lower():
+                                    st.metric("🔵 O₃", f"{value:.1f} ppb")
+                                else:
+                                    st.metric(f"📊 {pollutant}", f"{value:.1f}")
+                    else:
+                        st.info("📊 No pollutant data available yet")
+                        st.info("**To get pollutant data:**")
+                        st.info("1. Click '🔄 Collect Data' button")
+                        st.info("2. Wait for data collection to complete")
+                        st.info("3. Click '🔄 Refresh Now' button")
+                        st.info("4. Data will appear here automatically")
+                else:
+                    st.info("📊 Pollutant data will appear here when available")
+                    st.info("**Make sure:**")
+                    st.info("• FastAPI backend is running")
+                    st.info("• Data collection has been triggered")
+                    st.info("• Data files exist in the system")
+            else:
+                st.info("No weather data available")
+        else:
+            st.info("Weather data will appear here when available")
     
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #ffffff; padding: 1.5rem; background: linear-gradient(135deg, #1b1f2a 0%, #232a36 100%); border: 1px solid rgba(255,255,255,0.07); border-radius: 15px; margin-top: 2rem;">
-        <h3 style="color: #ffffff; margin-bottom: 0.6rem;">🌤️ AQI Forecasting Dashboard</h3>
-        <p style="margin: 0.4rem 0; font-size: 1rem; color:#e0e6ee;">Real-time air quality monitoring and prediction system</p>
-        <p style="margin: 0.4rem 0; font-size: 0.9rem; color:#cfd6df;">Built with Streamlit & FastAPI</p>
-        <div style="margin-top: 0.8rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; display: inline-block;">
-            <p style="margin: 0; font-size: 0.85rem; color: #e6f0ff;">
-                Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-            </p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Forecast section
+    st.markdown("## 🔮 AQI Forecast")
     
-    # Auto-refresh logic
+    # Get latest forecast
+    forecast_data = app.get_latest_forecast()
+    
+    if forecast_data and forecast_data.get('success'):
+        data = forecast_data.get('data', {})
+        forecasts = data.get('forecasts', [])
+        
+        if forecasts:
+            # Forecast chart
+            forecast_chart = create_forecast_chart(data)
+            st.plotly_chart(forecast_chart, use_container_width=True)
+            
+            # Forecast summary
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                horizon = data.get('forecast_horizon', 0)
+                st.metric("Forecast Horizon", f"{horizon} hours")
+            
+            with col2:
+                total_forecasts = len(forecasts)
+                st.metric("Total Predictions", total_forecasts)
+            
+            with col3:
+                models_used = data.get('metadata', {}).get('models_used', [])
+                st.metric("Models Used", len(models_used))
+            
+            # Forecast table
+            st.markdown("### 📋 Forecast Details")
+            st.info("📅 All timestamps in the table below are displayed in UTC")
+            forecast_df = pd.DataFrame(forecasts)
+            st.dataframe(forecast_df, use_container_width=True)
+            
+        else:
+            st.info("No forecast data available. Please generate a new forecast.")
+    else:
+        st.info("Forecast data will appear here when available. Click 'Generate Forecast' to create predictions.")
+    
+    # Auto-refresh functionality
     if auto_refresh:
-        time.sleep(refresh_interval)
+        time.sleep(REFRESH_INTERVAL)
         st.rerun()
 
 if __name__ == "__main__":
     main()
-
-

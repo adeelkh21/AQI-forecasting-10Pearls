@@ -1,137 +1,200 @@
+"""
+Safe subprocess execution utilities for the AQI Forecasting System
+"""
 import subprocess
 import logging
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+import time
+from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
+from dataclasses import dataclass
 
-from .paths import RUN_PY, ROOT
+from .paths import get_python_executable
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 @dataclass
-class RunResult:
-    returncode: int
+class ExecutionResult:
+    """Result of a subprocess execution"""
+    success: bool
+    return_code: int
     stdout: str
     stderr: str
-    success: bool
-    duration: float
-    
-    @property
-    def failed(self) -> bool:
-        return self.returncode != 0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "returncode": self.returncode,
-            "success": self.success,
-            "stdout": self.stdout,
-            "stderr": self.stderr,
-            "duration": self.duration
-        }
+    execution_time: float
+    command: str
+    error_message: Optional[str] = None
 
+class ScriptRunner:
+    """Safe script execution with timeout and error handling"""
+    
+    def __init__(self, timeout: int = 3600):
+        self.timeout = timeout
+        self.python_executable = get_python_executable()
+    
+    def run_script(self, script_path: Path, args: list = None, timeout: int = None) -> ExecutionResult:
+        """
+        Run a Python script safely
+        
+        Args:
+            script_path: Path to the Python script
+            args: Additional arguments to pass to the script
+            timeout: Execution timeout in seconds (overrides default)
+        
+        Returns:
+            ExecutionResult with execution details
+        """
+        if args is None:
+            args = []
+        
+        if timeout is None:
+            timeout = self.timeout
+        
+        # Build the command
+        command = [self.python_executable, str(script_path)] + args
+        command_str = " ".join(command)
+        
+        logger.info(f"🚀 Executing script: {command_str}")
+        start_time = time.time()
+        
+        try:
+            # Execute the script
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=script_path.parent
+            )
+            
+            execution_time = time.time() - start_time
+            
+            # Check if execution was successful
+            success = result.returncode == 0
+            
+            if success:
+                logger.info(f"✅ Script executed successfully in {execution_time:.2f}s")
+            else:
+                logger.error(f"❌ Script failed with return code {result.returncode}")
+            
+            return ExecutionResult(
+                success=success,
+                return_code=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                execution_time=execution_time,
+                command=command_str
+            )
+            
+        except subprocess.TimeoutExpired:
+            execution_time = time.time() - start_time
+            error_msg = f"Script execution timed out after {timeout}s"
+            logger.error(f"⏰ {error_msg}")
+            
+            return ExecutionResult(
+                success=False,
+                return_code=-1,
+                stdout="",
+                stderr=error_msg,
+                execution_time=execution_time,
+                command=command_str,
+                error_message=error_msg
+            )
+            
+        except FileNotFoundError:
+            execution_time = time.time() - start_time
+            error_msg = f"Script not found: {script_path}"
+            logger.error(f"📁 {error_msg}")
+            
+            return ExecutionResult(
+                success=False,
+                return_code=-1,
+                stdout="",
+                stderr=error_msg,
+                execution_time=execution_time,
+                command=command_str,
+                error_message=error_msg
+            )
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            error_msg = f"Unexpected error: {str(e)}"
+            logger.error(f"💥 {error_msg}")
+            
+            return ExecutionResult(
+                success=False,
+                return_code=-1,
+                stdout="",
+                stderr=error_msg,
+                execution_time=execution_time,
+                command=command_str,
+                error_message=error_msg
+            )
+    
+    def run_collect_script(self, timeout: int = 1800) -> ExecutionResult:
+        """Run the data collection script"""
+        from .paths import COLLECT_SCRIPT
+        return self.run_script(COLLECT_SCRIPT, timeout=timeout)
+    
+    def run_pipeline_script(self, timeout: int = 3600) -> ExecutionResult:
+        """Run the combined data pipeline script"""
+        from .paths import COMBINED_PIPELINE_SCRIPT
+        return self.run_script(COMBINED_PIPELINE_SCRIPT, timeout=timeout)
+    
+    def run_forecast_script(self, timeout: int = 1800) -> ExecutionResult:
+        """Run the forecasting script"""
+        from .paths import FORECAST_SCRIPT
+        return self.run_script(FORECAST_SCRIPT, timeout=timeout)
+    
+    def validate_script(self, script_path: str | Path) -> bool:
+        """Validate that a script exists and is executable"""
+        # Convert string to Path if needed
+        if isinstance(script_path, str):
+            script_path = Path(script_path)
+        
+        if not script_path.exists():
+            logger.error(f"❌ Script not found: {script_path}")
+            return False
+        
+        if not script_path.is_file():
+            logger.error(f"❌ Path is not a file: {script_path}")
+            return False
+        
+        # Check if it's a Python file
+        if script_path.suffix != '.py':
+            logger.error(f"❌ Not a Python file: {script_path}")
+            return False
+        
+        logger.info(f"✅ Script validated: {script_path}")
+        return True
 
-def run_py(args: List[str], timeout: int = 3600, cwd: Optional[Path] = None) -> RunResult:
-    """
-    Run a Python script with the virtual environment interpreter.
+def format_execution_result(result: ExecutionResult) -> Dict[str, Any]:
+    """Format execution result for API response"""
+    return {
+        "success": result.success,
+        "return_code": result.return_code,
+        "execution_time": round(result.execution_time, 2),
+        "command": result.command,
+        "stdout": result.stdout.strip() if result.stdout else "",
+        "stderr": result.stderr.strip() if result.stderr else "",
+        "error_message": result.error_message,
+        "status": "success" if result.success else "failed"
+    }
+
+if __name__ == "__main__":
+    # Test the runner
+    runner = ScriptRunner()
     
-    Args:
-        args: List of arguments to pass to python
-        timeout: Timeout in seconds
-        cwd: Working directory for the command
-        
-    Returns:
-        RunResult with execution details
-    """
-    import time
+    # Test path validation
+    from .paths import COLLECT_SCRIPT, COMBINED_PIPELINE_SCRIPT, FORECAST_SCRIPT
     
-    start_time = time.time()
-    cmd = [RUN_PY] + args
-    working_dir = str(cwd) if cwd else str(ROOT)
+    print("🔍 Testing script validation...")
+    scripts = [COLLECT_SCRIPT, COMBINED_PIPELINE_SCRIPT, FORECAST_SCRIPT]
     
-    logger.info(f"Running: {' '.join(cmd)} (cwd: {working_dir})")
-    
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-            cwd=working_dir
-        )
-        
-        duration = time.time() - start_time
-        success = proc.returncode == 0
-        
-        if success:
-            logger.info(f"Command succeeded in {duration:.2f}s")
+    for script in scripts:
+        if runner.validate_script(script):
+            print(f"✅ {script.name} is valid")
         else:
-            logger.warning(f"Command failed with return code {proc.returncode} in {duration:.2f}s")
-            if proc.stderr:
-                logger.warning(f"Stderr: {proc.stderr[:500]}...")
-        
-        return RunResult(
-            returncode=proc.returncode,
-            stdout=proc.stdout,
-            stderr=proc.stderr,
-            success=success,
-            duration=duration
-        )
-        
-    except subprocess.TimeoutExpired:
-        duration = time.time() - start_time
-        logger.error(f"Command timed out after {timeout}s")
-        return RunResult(
-            returncode=-1,
-            stdout="",
-            stderr=f"Command timed out after {timeout} seconds",
-            success=False,
-            duration=duration
-        )
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(f"Command failed with exception: {e}")
-        return RunResult(
-            returncode=-1,
-            stdout="",
-            stderr=str(e),
-            success=False,
-            duration=duration
-        )
-
-
-def run_script(script_path: Path, args: List[str] = None, timeout: int = 3600) -> RunResult:
-    """
-    Run a specific script with optional arguments.
+            print(f"❌ {script.name} is invalid")
     
-    Args:
-        script_path: Path to the script to run
-        args: Additional arguments for the script
-        timeout: Timeout in seconds
-        
-    Returns:
-        RunResult with execution details
-    """
-    if args is None:
-        args = []
-    
-    if not script_path.exists():
-        return RunResult(
-            returncode=-1,
-            stdout="",
-            stderr=f"Script not found: {script_path}",
-            success=False,
-            duration=0.0
-        )
-    
-    return run_py([str(script_path)] + args, timeout=timeout, cwd=script_path.parent)
-
-
-def check_script_exists(script_path: Path) -> bool:
-    """Check if a script exists and is executable."""
-    return script_path.exists() and script_path.is_file()
-
-
+    print(f"🐍 Python executable: {runner.python_executable}")
