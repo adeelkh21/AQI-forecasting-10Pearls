@@ -1,14 +1,14 @@
 {
   "created_at": "2025-08-20T15:49:20.784641",
-  "last_run_at": "2025-08-23T18:43:00.450428",
+  "last_run_at": "2025-08-24T02:19:18.295625",
   "thresholds": {
     "min_rmse_rel_improvement_daily": 0.02
   },
   "champions": {
     "24h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\catboost_24h.txt",
-      "rmse": 18.83303748106456,
-      "r2": 0.5084491186494243
+      "rmse": 18.14894303744793,
+      "r2": 0.5273447404927747
     },
     "48h": {
       "path": "D:\\forecasting_good\\FinalIA\\saved_models\\champions\\tcn_48h.pth",
