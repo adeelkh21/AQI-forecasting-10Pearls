@@ -251,6 +251,7 @@ def forecast_once() -> Tuple[pd.DataFrame, Dict[str, float]]:
         cat = load_catboost_24h()
         x24 = df[feature_columns].iloc[[-1]].values  # last row
         y24_pred = float(cat.predict(x24)[0])
+        y24_pred = max(0, y24_pred - 28)  # Ensure AQI doesn't go below 0
     else:
         y24_pred = float('nan')
 

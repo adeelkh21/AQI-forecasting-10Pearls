@@ -358,7 +358,8 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
                 random.seed(hours_ahead)  # Consistent variation for same hour
                 variation = random.uniform(-2.0, 2.0)
                 
-                forecast_value = base_prediction * diurnal_factor + variation
+                forecast_value = (base_prediction * diurnal_factor + variation) - 28
+                forecast_value = max(0, forecast_value)  # Ensure AQI doesn't go below 0
                 model_used = 'CatBoost'
                 
             except Exception as e:
