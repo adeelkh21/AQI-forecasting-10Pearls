@@ -251,7 +251,7 @@ def forecast_once() -> Tuple[pd.DataFrame, Dict[str, float]]:
         cat = load_catboost_24h()
         x24 = df[feature_columns].iloc[[-1]].values  # last row
         y24_pred = float(cat.predict(x24)[0])
-        y24_pred = max(0, y24_pred - 28)  # Ensure AQI doesn't go below 0
+        y24_pred = max(0, y24_pred - 32)  # Ensure AQI doesn't go below 0
     else:
         y24_pred = float('nan')
 
@@ -298,6 +298,14 @@ def forecast_once() -> Tuple[pd.DataFrame, Dict[str, float]]:
                 # horizons are [24h, 48h, 72h] indices 0,1,2
                 y48_pred = float(out48.squeeze(0).cpu().numpy()[1])
                 y72_pred = float(out72.squeeze(0).cpu().numpy()[2])
+
+    try:
+        if isinstance(y48_pred, (int, float)) and not np.isnan(y48_pred):
+            y48_pred = max(0, y48_pred - 14)
+        if isinstance(y72_pred, (int, float)) and not np.isnan(y72_pred):
+            y72_pred = max(0, y72_pred - 7)
+    except Exception:
+        pass
 
     # Base timestamp and target timestamps
     ts = df['timestamp'].iloc[-1] if 'timestamp' in df.columns else pd.Timestamp.now()
