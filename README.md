@@ -51,8 +51,8 @@ This project is a **100% complete, enterprise-grade Air Quality Index (AQI) fore
 │   Data Sources  │     │  Data Pipeline  │    │  ML Models &    │
 │                 │     │                 │    │  Forecasting    │
 │ • OpenWeather   │───▶│ • Collection   │───▶│ • CatBoost      │
-│ • Historical    │     │ • Processing    │    │ • TCN           │
-│   Data          │     │ • Validation    │     │ • Ensemble     │
+│ • Meteostat data│     │ • Processing    │    │ • TCN           │
+│                 │     │ • Validation    │     │ • Ensemble     │
 └─────────────────┘     │ • Feature Eng.  │    │ • Traditional   │
                         └─────────────────┘    └─────────────────┘
                                │
