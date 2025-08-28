@@ -6,6 +6,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import os
+import pandas as pd
+import warnings
 from plotly.subplots import make_subplots
 import requests
 import time
@@ -154,6 +157,30 @@ st.markdown("""
         border-radius: 10px;
         margin: 1rem 0;
         border: 1px solid #f87171;
+    }
+    
+    /* Navigation styling */
+    .nav-button {
+        background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+        color: #f9fafb;
+        border: 1px solid #4b5563;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem 0;
+        text-align: center;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .nav-button:hover {
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .nav-button.active {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-color: #60a5fa;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -651,8 +678,87 @@ def create_weather_chart(weather: Dict[str, float]) -> go.Figure:
     
     return fig
 
+
+def save_timeline_artifacts(fig, timeline_data):
+    """Save AQI timeline chart image and export numerical AQI CSVs into EDA folder.
+
+    - Saves chart to EDA/aqi_timeline.png (or HTML fallback)
+    - Saves numerical AQI vs timestamp to EDA/latest_numerical_aqi.csv
+    - Merges numerical AQI into processed merged_data.csv and saves to EDA/merged_with_numerical_aqi.csv
+    """
+    try:
+        # Write artifacts to single folder dataEDA (no versioning)
+        os.makedirs('dataEDA', exist_ok=True)
+
+        # Save figure as PNG (fallback to HTML if kaleido not available)
+        chart_png = os.path.join('dataEDA', 'aqi_timeline.png')
+        chart_html = os.path.join('dataEDA', 'aqi_timeline.html')
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                fig.write_image(chart_png, scale=2)
+        except Exception:
+            fig.write_html(chart_html, include_plotlyjs='cdn')
+
+        # Build numerical AQI timeline CSV from API timeline payload
+        timeline = timeline_data.get('timeline', []) if isinstance(timeline_data, dict) else []
+        rows = []
+        for point in timeline:
+            ts = point.get('timestamp') or point.get('time')
+            val = point.get('aqi_value')
+            if ts is not None and val is not None:
+                rows.append({'timestamp': ts, 'numerical_aqi': float(val)})
+        if rows:
+            df_num = pd.DataFrame(rows)
+            # Normalize timestamp
+            df_num['timestamp'] = pd.to_datetime(df_num['timestamp'])
+            df_num = df_num.sort_values('timestamp').drop_duplicates(subset=['timestamp'], keep='last')
+            num_path = os.path.join('dataEDA', 'latest_numerical_aqi.csv')
+            df_num.to_csv(num_path, index=False)
+
+            # Merge with processed merged_data.csv to include all features + numerical_aqi
+            merged_src = os.path.join('data_repositories', 'historical_data', 'processed', 'merged_data.csv')
+            if os.path.exists(merged_src):
+                df_merged = pd.read_csv(merged_src)
+                if 'timestamp' in df_merged.columns:
+                    df_merged['timestamp'] = pd.to_datetime(df_merged['timestamp'])
+                    out = df_merged.merge(df_num, on='timestamp', how='left')
+                    out_path = os.path.join('dataEDA', 'merged_with_numerical_aqi.csv')
+                    out.to_csv(out_path, index=False)
+    except Exception as _e:
+        # Non-fatal in UI; artifacts are best-effort
+        pass
+
 def main():
     """Main application function"""
+    # Page navigation
+    st.sidebar.markdown("## 🧭 Navigation")
+    
+    # Navigation buttons
+    if st.sidebar.button("🏠 Dashboard", key="nav_dashboard", use_container_width=True):
+        st.session_state.current_page = "dashboard"
+    
+    if st.sidebar.button("🔍 EDA Analysis", key="nav_eda", use_container_width=True):
+        st.session_state.current_page = "eda"
+    
+    st.sidebar.markdown("---")
+    
+    # Initialize current page if not set
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "dashboard"
+    
+    # Show EDA page if selected
+    if st.session_state.current_page == "eda":
+        # Import and run EDA page
+        try:
+            from eda_page import main as eda_main
+            eda_main()
+            return
+        except ImportError:
+            st.error("❌ EDA page module not found. Please ensure eda_page.py is in the same directory.")
+            st.session_state.current_page = "dashboard"
+    
+    # Main dashboard page
     st.markdown("""
     <div class="main-header">
         <h1>🌤️ AQI Forecasting System</h1>
@@ -956,6 +1062,11 @@ def main():
                 # Create AQI timeline chart
                 timeline_chart = create_aqi_timeline_chart(timeline_data, current_data)
                 st.plotly_chart(timeline_chart, use_container_width=True)
+                # Save artifacts to EDA folder (image + CSV exports)
+                try:
+                    save_timeline_artifacts(timeline_chart, timeline_data)
+                except Exception:
+                    pass
                 
                 # Display timeline statistics
                 col1, col2, col3, col4 = st.columns(4)
@@ -1029,6 +1140,27 @@ def main():
             st.info("No forecast data available. Please generate a new forecast.")
     else:
         st.info("Forecast data will appear here when available. Click 'Generate Forecast' to create predictions.")
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border-radius: 15px; border: 1px solid #374151; margin-top: 3rem;">
+        <h3 style="color: #fbbf24; margin-bottom: 1rem;">👨‍💻 Project Developer</h3>
+        <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Muhammad Adeel</h4>
+        <p style="color: #d1d5db; margin-bottom: 1rem;">Student of Data Science at GIK Institute</p>
+        <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1rem;">
+            <a href="https://www.linkedin.com/in/muhammadadeel21/" target="_blank" style="text-decoration: none; color: #60a5fa; padding: 0.5rem 1rem; border: 1px solid #60a5fa; border-radius: 8px; transition: all 0.3s ease;">
+                🔗 LinkedIn
+            </a>
+            <a href="https://github.com/adeelkh21" target="_blank" style="text-decoration: none; color: #60a5fa; padding: 0.5rem 1rem; border: 1px solid #60a5fa; border-radius: 8px; transition: all 0.3s ease;">
+                🐙 GitHub
+            </a>
+        </div>
+        <p style="color: #9ca3af; font-size: 0.9rem; margin-top: 1.5rem; margin-bottom: 0;">
+            Built with ❤️ using Python, Streamlit, and Machine Learning
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Auto-refresh functionality
     if auto_refresh:

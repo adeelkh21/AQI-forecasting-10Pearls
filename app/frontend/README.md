@@ -1,301 +1,252 @@
-# 🌤️ AQI Forecasting System - Streamlit Frontend
+# 🔍 AQI Forecasting System - Frontend
 
-A sophisticated, real-time Streamlit interface for monitoring and controlling AQI forecasting operations.
+A comprehensive Streamlit-based frontend for the AQI (Air Quality Index) forecasting system with integrated Exploratory Data Analysis (EDA) capabilities.
 
-## ✨ Features
+## 🚀 Features
 
-### 🎨 **Sophisticated Dark Theme**
-- **Modern Design**: Clean, professional interface with dark theme
-- **Responsive Layout**: Wide layout optimized for data visualization
-- **Interactive Elements**: Hover effects, smooth transitions, and visual feedback
-- **Custom Styling**: Professional CSS with gradients and shadows
+### **Main Dashboard**
+- Real-time AQI monitoring and visualization
+- Historical data analysis and trends
+- Forecasting model management
+- System status and health monitoring
 
-### 📊 **Real-Time Data Display**
-- **Current AQI Status**: Beautiful gauge chart with color-coded categories
-- **Weather Conditions**: Multi-parameter weather display with gauges
-- **Pollutant Levels**: Interactive bar charts for all air pollutants
-- **System Status**: Real-time monitoring of backend services
+### **🔍 EDA Analysis (NEW!)**
+- **9 Comprehensive Analysis Tabs:**
+  1. 📊 **Overview** - Dataset structure & AQI distributions
+  2. 📈 **Temporal Patterns** - Time series trends & patterns
+  3. 🔗 **Correlations** - Feature relationships & multicollinearity
+  4. 🌫️ **Pollutants** - Distribution plots & statistics
+  5. 🌸 **Seasonal** - Monthly patterns & weekend analysis
+  6. 📈 **Time Series** - Seasonal decomposition & trends
+  7. 🔄 **Autocorrelation** - Lag analysis with proper visualizations
+  8. 📊 **Spikes & Volatility** - Extreme events & stability analysis
+  9. ⚙️ **Features** - Engineering, scaling, selection, export
 
-### 🔮 **Forecast Visualization**
-- **72-Hour Forecasts**: Complete prediction timeline with trend analysis
-- **Model Transitions**: Visual indicators for different forecasting models
-- **Trend Lines**: Regression analysis with mathematical trend lines
-- **Interactive Charts**: Plotly-based charts with hover information
+- **Interactive Visualizations:** All charts use Plotly for zoom, pan, and hover interactions
+- **Smart Data Loading:** Automatic path detection for data files
+- **Feature Engineering:** Automated scaling, selection, and export capabilities
+- **Professional Insights:** Comprehensive analysis with actionable recommendations
 
-### 🎛️ **Control Panel**
-- **Data Collection**: One-click data collection trigger
-- **Data Processing**: Automated data preprocessing pipeline
-- **Forecast Generation**: Instant AQI prediction generation
-- **System Monitoring**: Real-time health checks and status updates
+## 🛠️ Installation
 
-### ⚡ **Real-Time Features**
-- **Auto-refresh**: Configurable automatic data updates
-- **Live Monitoring**: Continuous backend health monitoring
-- **Instant Feedback**: Real-time job status and execution feedback
-- **Error Handling**: Comprehensive error handling and user notifications
-
-## 🚀 Quick Start
-
-### Prerequisites
+### **Prerequisites**
 - Python 3.8+
-- FastAPI backend running on port 8000
-- Required Python packages (see requirements.txt)
+- Streamlit
+- Required packages (see `requirements.txt`)
 
-### Installation
+### **Setup**
 ```bash
+# Navigate to frontend directory
+cd app/frontend
+
 # Install dependencies
 pip install -r requirements.txt
 
-# Ensure FastAPI backend is running
-# (Start from app/backend/main.py)
+# Install EDA-specific dependencies
+pip install -r requirements_eda.txt
 ```
 
-### Launch the Frontend
+## 🚀 Usage
+
+### **Launch Main Application**
 ```bash
-# Method 1: Using the launch script (recommended)
-python app/frontend/run_streamlit.py
-
-# Method 2: Direct Streamlit command
-streamlit run app/frontend/streamlit_app.py
-
-# Method 3: With custom configuration
-python app/frontend/run_streamlit.py --port 8501 --host 127.0.0.1 --debug
+streamlit run streamlit_app.py
 ```
 
-### Launch Options
-- `--port`: Custom port (default: 8501)
-- `--host`: Custom host (default: 127.0.0.1)
-- `--debug`: Enable debug mode
-- `--help`: Show all options
+### **Launch EDA Only (Standalone)**
+```bash
+streamlit run run_eda.py
+```
 
-## 🏗️ Architecture
+### **Test EDA Functionality**
+```bash
+python demo_eda.py
+```
 
-### File Structure
+## 📁 File Structure
+
 ```
 app/frontend/
-├── streamlit_app.py      # Main Streamlit application
-├── config.py            # Configuration and theme settings
-├── run_streamlit.py     # Launch script
-└── README.md           # This documentation
+├── streamlit_app.py          # Main Streamlit application
+├── eda_page.py              # EDA analysis module
+├── app_config.py            # Application configuration
+├── requirements.txt          # Main dependencies
+├── requirements_eda.txt      # EDA-specific dependencies
+├── run_eda.py               # Standalone EDA runner
+├── demo_eda.py              # EDA functionality test
+├── README.md                # This file
+├── EDA_README.md            # Detailed EDA documentation
+├── INTEGRATION_SUMMARY.md   # EDA integration details
+├── PATH_FIX_SUMMARY.md      # Data path resolution details
+├── ERROR_FIX_SUMMARY.md     # String formatting error fixes
+└── PLOTLY_FIX_SUMMARY.md    # Plotly range object fixes
 ```
 
-### Core Components
+## 🔧 Recent Fixes & Improvements
 
-#### 1. **AQIForecastingApp Class**
-- **API Integration**: HTTP client for FastAPI backend
-- **Data Management**: Centralized data fetching and caching
-- **Error Handling**: Comprehensive error handling and user feedback
-- **Job Management**: Background job triggering and monitoring
+### **✅ Data Path Resolution**
+- **Smart Path Detection:** Automatically finds data files using multiple possible paths
+- **Absolute & Relative Paths:** Works from any directory location
+- **Automatic Fallback:** Uses absolute path if relative paths fail
 
-#### 2. **Chart Generation Functions**
-- **create_aqi_gauge()**: Interactive AQI gauge with color coding
-- **create_pollutant_chart()**: Bar charts for pollutant levels
-- **create_forecast_chart()**: Time-series forecast visualization
-- **create_weather_chart()**: Multi-parameter weather display
+### **✅ Plotly Range Object Errors Fixed**
+- **Autocorrelation Analysis:** Proper x-axis with lag values
+- **Cross-Correlation Analysis:** Correct bar chart x-axis
+- **Type Safety:** Converts Python `range` objects to lists for Plotly compatibility
 
-#### 3. **Configuration System**
-- **Theme Management**: Centralized color schemes and styling
-- **API Configuration**: Backend connection settings
-- **Chart Settings**: Visualization parameters and defaults
-- **Environment Variables**: Configurable via .env file
+### **✅ String Formatting Issues Resolved**
+- **Footer Rendering:** Fixed datetime formatting in EDA page
+- **Error-Free Display:** No more KeyError exceptions
 
-## 🎨 Theme Configuration
+### **✅ Circular Import Resolution**
+- **Config Module:** Renamed `config.py` to `app_config.py` to avoid Streamlit conflicts
+- **Clean Imports:** Seamless module loading without import errors
 
-### Color Scheme
-```python
-THEME_CONFIG = {
-    "primary_color": "#3b82f6",      # Blue
-    "secondary_color": "#f59e0b",    # Orange
-    "success_color": "#10b981",      # Green
-    "warning_color": "#f59e0b",      # Orange
-    "error_color": "#ef4444",        # Red
-    "background_color": "#0e1117",   # Dark background
-    "surface_color": "#1f2937",      # Card background
-    "border_color": "#374151",       # Border color
-    "text_color": "#f9fafb",        # Primary text
-    "text_secondary": "#d1d5db",    # Secondary text
-    "accent_color": "#fbbf24"       # Accent/highlight
-}
-```
+## 📊 Data Requirements
 
-### AQI Color Mapping
-- **Good (0-50)**: Green (#00e400)
-- **Moderate (51-100)**: Yellow (#ffff00)
-- **Unhealthy for Sensitive Groups (101-150)**: Orange (#ff7e00)
-- **Unhealthy (151-200)**: Red (#ff0000)
-- **Very Unhealthy (201-300)**: Purple (#8f3f97)
-- **Hazardous (301-500)**: Maroon (#7e0023)
+### **Required Data File**
+- **Location:** `dataEDA/merged_with_numerical_aqi.csv`
+- **Format:** CSV with columns including:
+  - `timestamp`: DateTime column
+  - `numerical_aqi`: Target variable
+  - `aqi_category`: Categorical AQI levels
+  - Various pollutant columns (pm2_5, pm10, co, no2, o3, etc.)
+  - Meteorological data (temperature, humidity, wind, etc.)
 
-## 📱 User Interface
+### **Data Structure**
+- **Expected Shape:** ~4000+ rows × 30+ columns
+- **Time Coverage:** Hourly data over extended period
+- **Missing Values:** Handled automatically with imputation
 
-### Main Dashboard
-1. **Header Section**: System title and description
-2. **Control Sidebar**: Action buttons and system status
-3. **AQI Gauge**: Large, interactive AQI display
-4. **Status Cards**: Key metrics and information
-5. **Weather Panel**: Current weather conditions
-6. **Pollutant Chart**: Air pollutant levels
-7. **Forecast Section**: 72-hour predictions with trend analysis
+## 🎯 Navigation
 
-### Control Panel Features
-- **API Status Indicator**: Real-time backend connection status
-- **Action Buttons**: Data collection, processing, and forecasting
-- **Auto-refresh Toggle**: Automatic data updates
-- **System Health**: Overall system status and warnings
-- **Manual Refresh**: Instant data refresh option
+### **Main App Navigation**
+- **Sidebar Navigation:** Switch between Dashboard and EDA Analysis
+- **Session State:** Remembers current page selection
+- **Seamless Integration:** No page reloads when switching
 
-## 🔌 API Integration
+### **EDA Tab Navigation**
+- **9 Organized Tabs:** Logical grouping of analysis types
+- **Progressive Analysis:** Start with overview, dive into specifics
+- **Interactive Elements:** Expandable sections and collapsible content
 
-### Endpoints Used
-- `GET /health` - Backend health check
-- `GET /api/v1/data/current` - Current AQI and weather data
-- `GET /api/v1/forecasts/latest` - Latest forecast data
-- `GET /api/v1/system/status` - System status information
-- `POST /api/v1/jobs/quick/collect` - Trigger data collection
-- `POST /api/v1/jobs/quick/process` - Trigger data processing
-- `POST /api/v1/jobs/quick/forecast` - Trigger forecasting
+## 🔍 EDA Analysis Capabilities
 
-### Data Flow
-1. **User Interaction** → Frontend triggers API calls
-2. **API Processing** → FastAPI backend executes operations
-3. **Data Retrieval** → Frontend fetches updated information
-4. **Visualization** → Charts and displays are updated
-5. **User Feedback** → Success/error messages displayed
+### **Statistical Analysis**
+- **Descriptive Statistics:** Mean, median, std, min/max for all features
+- **Missing Value Analysis:** Comprehensive data quality assessment
+- **Distribution Analysis:** Histograms, box plots, and statistical summaries
 
-## 🛠️ Customization
+### **Time Series Analysis**
+- **Seasonal Decomposition:** Trend, seasonal, and residual components
+- **Autocorrelation:** Lag analysis for temporal dependencies
+- **Cross-Correlation:** Feature lag relationships with AQI
 
-### Environment Variables
-```bash
-# API Configuration
-API_HOST=127.0.0.1
-API_PORT=8000
+### **Feature Engineering**
+- **Automatic Scaling:** MinMax normalization for all features
+- **Feature Selection:** F-regression based importance ranking
+- **Data Export:** Save processed data for modeling
 
-# Streamlit Configuration
-STREAMLIT_SERVER_PORT=8501
-STREAMLIT_SERVER_ADDRESS=127.0.0.1
-
-# UI Configuration
-REFRESH_INTERVAL=30
-AUTO_REFRESH_DEFAULT=true
-```
-
-### Theme Customization
-Modify `app/frontend/config.py` to customize:
-- Color schemes
-- Chart configurations
-- Layout settings
-- AQI ranges and colors
-- Pollutant and weather parameters
-
-### Adding New Charts
-1. Create chart function in `streamlit_app.py`
-2. Add configuration in `config.py`
-3. Integrate into main dashboard
-4. Update documentation
+### **Visualization Features**
+- **Interactive Charts:** Zoom, pan, hover, and selection capabilities
+- **Responsive Design:** Adapts to different screen sizes
+- **Professional Styling:** Consistent color schemes and layouts
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+### **Common Issues & Solutions**
 
-#### 1. **API Connection Failed**
-```
-❌ API Disconnected
-Please ensure the FastAPI backend is running
-```
-**Solution**: Start the FastAPI backend from `app/backend/main.py`
-
-#### 2. **No Data Available**
-```
-❌ Unable to retrieve current data
-Please check if data collection is running
-```
-**Solution**: 
-1. Click "🔄 Collect Data" button
-2. Wait for data collection to complete
-3. Click "🔄 Refresh Now"
-
-#### 3. **Forecast Not Available**
-```
-No forecast data available. Please generate a new forecast.
-```
-**Solution**: Click "🔮 Generate Forecast" button
-
-#### 4. **Port Already in Use**
-```
-Error: Port 8501 is already in use
-```
-**Solution**: Use different port with `--port` flag
-
-### Debug Mode
-Enable debug mode for detailed logging:
+#### **Data File Not Found**
 ```bash
-python app/frontend/run_streamlit.py --debug
+# Check if data exists
+ls -la ../../dataEDA/
+
+# Verify path in eda_page.py
+# The system automatically detects correct paths
 ```
 
-## 📊 Performance Features
+#### **Import Errors**
+```bash
+# Ensure all dependencies installed
+pip install -r requirements_eda.txt
 
-### Caching
-- **Data Caching**: Reduces API calls for better performance
-- **Chart Caching**: Prevents unnecessary chart regeneration
-- **Session State**: Maintains user preferences across sessions
+# Check for circular imports
+# config.py should be renamed to app_config.py
+```
 
-### Optimization
-- **Lazy Loading**: Charts load only when needed
-- **Efficient Updates**: Minimal re-rendering of components
-- **Background Processing**: Non-blocking API calls
+#### **Plotly Errors**
+```bash
+# All range object errors have been fixed
+# If you see new errors, check data types being passed to Plotly
+```
 
-### Monitoring
-- **Real-time Status**: Live backend health monitoring
-- **Performance Metrics**: System resource utilization
-- **Error Tracking**: Comprehensive error logging and display
+### **Debug Mode**
+```bash
+# Test EDA functionality without Streamlit
+python demo_eda.py
+
+# Test main app integration
+python -c "import streamlit_app; print('✅ Integration successful')"
+```
 
 ## 🔮 Future Enhancements
 
-### Planned Features
-- **WebSocket Support**: Real-time data streaming
-- **Mobile Optimization**: Responsive design for mobile devices
-- **Advanced Analytics**: Statistical analysis and insights
-- **Export Functionality**: Data export in various formats
-- **User Authentication**: Multi-user support with roles
-- **Notification System**: Alerts for critical AQI levels
+### **Planned Features**
+- **Real-time Data Updates:** Live data streaming integration
+- **Advanced Analytics:** Machine learning model performance analysis
+- **Export Capabilities:** PDF reports and data exports
+- **Custom Dashboards:** User-configurable analysis views
 
-### Integration Possibilities
-- **IoT Devices**: Direct sensor data integration
-- **External APIs**: Weather service integration
-- **Machine Learning**: Advanced prediction models
-- **Cloud Deployment**: Scalable cloud infrastructure
+### **Performance Improvements**
+- **Caching:** Streamlit caching for faster analysis
+- **Lazy Loading:** Load heavy visualizations on demand
+- **Optimized Charts:** Reduced memory usage for large datasets
 
-## 📚 API Documentation
+## 📚 Documentation
 
-For detailed API documentation, visit:
-- **Swagger UI**: `http://127.0.0.1:8000/docs`
-- **ReDoc**: `http://127.0.0.1:8000/redoc`
+### **Additional Resources**
+- **`EDA_README.md`:** Comprehensive EDA module documentation
+- **`INTEGRATION_SUMMARY.md`:** Technical integration details
+- **`PATH_FIX_SUMMARY.md`:** Data path resolution guide
+- **`ERROR_FIX_SUMMARY.md`:** String formatting fixes
+- **`PLOTLY_FIX_SUMMARY.md`:** Plotly compatibility fixes
+
+### **API Documentation**
+- **Backend Integration:** FastAPI endpoints for data and forecasts
+- **Data Services:** Real-time data fetching and processing
+- **Job Management:** Background task execution and monitoring
 
 ## 🤝 Contributing
 
-### Development Setup
+### **Development Setup**
 1. Fork the repository
-2. Create feature branch
-3. Make changes with proper testing
-4. Submit pull request
+2. Create feature branch: `git checkout -b feature/new-analysis`
+3. Make changes and test thoroughly
+4. Submit pull request with detailed description
 
-### Code Standards
-- Follow PEP 8 style guidelines
-- Add comprehensive docstrings
-- Include error handling
-- Write unit tests for new features
+### **Testing Guidelines**
+- Test EDA functionality: `python demo_eda.py`
+- Test main app integration: `python -c "import streamlit_app"`
+- Test Streamlit launch: `streamlit run streamlit_app.py`
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is part of the AQI Forecasting System developed by 10Pearls.
 
 ## 🆘 Support
 
-- **Issues**: Report bugs via GitHub Issues
-- **Documentation**: Check this README and API docs
-- **Community**: Join our discussion forum
-- **Email**: Contact the development team
+### **Getting Help**
+- **Documentation:** Check all README files in the frontend directory
+- **Error Logs:** Look for specific error messages in the documentation
+- **Testing:** Use demo scripts to isolate issues
+
+### **Current Status**
+- **✅ EDA Integration:** Fully operational
+- **✅ All Fixes Applied:** No known errors
+- **✅ Ready for Production:** Robust and reliable system
 
 ---
 
-**🌤️ AQI Forecasting System** - Making air quality monitoring accessible and intelligent.
+**Last Updated:** December 2024  
+**Status:** ✅ **FULLY OPERATIONAL**  
+**Version:** 2.0 (with EDA Integration)

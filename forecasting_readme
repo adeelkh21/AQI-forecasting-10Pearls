@@ -1,0 +1,254 @@
+# Forecasting System — Complete Pipeline
+
+This document covers our complete forecasting system: the main forecast runner, continuous 72h forecasting, daily automation, and model fine-tuning scripts. It details what we built, issues faced and solved, why each script matters, and the outputs achieved.
+
+## Scope
+- **Main forecasting**: `forecast.py` (24h/48h/72h with per-horizon models)
+- **Continuous forecasting**: `forecast_continuous_72h.py` (future 72h line)
+- **Daily automation**: `daily_runner.py` (end-to-end pipeline)
+- **Model fine-tuning**: `phase10_best_model_fine_tuning.py` and `phase11_per_horizon_finetune.py`
+
+## What we built
+- A production-ready forecasting system with locked models for each horizon
+- Continuous future forecasting with realistic diurnal patterns
+- Automated daily pipeline with data refresh, model updates, and forecasting
+- Per-horizon fine-tuning for CatBoost (24h) and TCN (48h/72h)
+
+## Importance of each script
+
+### 1. `forecast.py` - Main Forecasting Engine
+- **Purpose**: Core forecasting with per-horizon locked models and backtesting
+- **Why it matters**: Provides the primary forecasting interface with deterministic results
+- **Key features**: Multi-horizon (24h/48h/72h), rolling-origin backtesting, traceable outputs
+
+### 2. `forecast_continuous_72h.py` - Future Forecasting
+- **Purpose**: Creates continuous 72-hour predictions for the future (not past)
+- **Why it matters**: Generates realistic, time-aware predictions with diurnal patterns
+- **Key features**: Future-oriented, visualization output, continuous prediction line
+
+### 3. `daily_runner.py` - Production Automation
+- **Purpose**: End-to-end daily pipeline: data → checks → fine-tune → forecast
+- **Why it matters**: Automates the entire forecasting workflow safely and idempotently
+- **Key features**: Safety gates, model promotion, feature refresh, comprehensive logging
+
+### 4. `phase10_best_model_fine_tuning.py` - General Fine-tuning
+- **Purpose**: Fine-tunes top models on clean 24-hour dataset
+- **Why it matters**: Improves model performance through focused hyperparameter search
+- **Key features**: Multiple algorithms (LightGBM, CatBoost, TCN), held-out evaluation
+
+### 5. `phase11_per_horizon_finetune.py` - Horizon-Specific Tuning
+- **Purpose**: Per-horizon fine-tuning with horizon-focused loss weighting
+- **Why it matters**: Optimizes each model for its specific forecasting horizon
+- **Key features**: 24h CatBoost, 48h/72h TCN, horizon-specific optimization
+
+## Detailed Workflows
+
+### `forecast.py` - Main Forecasting
+1) **Load locked artifacts**
+   - Feature columns, scalers, and best-per-horizon models
+   - CatBoost for 24h, TCN for 48h/72h
+
+2) **Data preparation**
+   - Load latest features from `phase1_fixed_selected_features.csv`
+   - Apply scaling and feature selection
+
+3) **Multi-horizon forecasting**
+   - 24h: Single-step CatBoost prediction
+   - 48h/72h: TCN sequence models with proper input preparation
+
+4) **Output generation**
+   - CSV forecasts with timestamps and predictions
+   - JSON with metadata and trace info
+   - Optional backtesting with rolling-origin validation
+
+### `forecast_continuous_72h.py` - Continuous Future
+1) **Future window calculation**
+   - Start from current hour (or next hour after latest data)
+   - Generate predictions for next 72 hours ahead
+
+2) **Sequential forecasting**
+   - Use 24h CatBoost for immediate predictions
+   - Chain TCN models for 48h and 72h horizons
+   - Ensure continuity across horizon boundaries
+
+3) **Visualization and output**
+   - Create continuous 72-hour prediction line
+   - Generate plots showing future trends
+   - Save CSV and JSON with future timestamps
+
+### `daily_runner.py` - Production Pipeline
+1) **Environment setup**
+   - Ensure all required directories exist
+   - Check for virtual environment and Python interpreter
+
+2) **Feature management**
+   - Verify features are available
+   - Optionally regenerate via preprocessing if missing
+
+3) **Data quality checks**
+   - Validate feature dataset date ranges
+   - Check for data freshness and completeness
+
+4) **Model fine-tuning**
+   - Run per-horizon fine-tuning via `phase11_per_horizon_finetune.py`
+   - Apply safety gates and model promotion
+
+5) **Forecasting execution**
+   - Generate forecasts via `forecast.py`
+   - Log results and any issues
+
+### `phase10_best_model_fine_tuning.py` - General Tuning
+1) **Dataset preparation**
+   - Load clean 24-hour forecasting dataset
+   - Apply temporal splits (60/20/20)
+
+2) **Multi-algorithm search**
+   - LightGBM: Grid search with early stopping
+   - CatBoost: Hyperparameter optimization
+   - TCN: Architecture and training parameter search
+
+3) **Evaluation and selection**
+   - Held-out test set evaluation
+   - RMSE, MAE, R² metrics
+   - Save best models and performance report
+
+### `phase11_per_horizon_finetune.py` - Horizon-Specific
+1) **Per-horizon dataset preparation**
+   - Load multi-horizon dataset (no leakage)
+   - Prepare features for each horizon
+
+2) **24h CatBoost fine-tuning**
+   - Small, stable hyperparameter search
+   - Early stopping for stability
+
+3) **48h/72h TCN fine-tuning**
+   - Load best checkpoints from Phase 8
+   - Low learning rate with horizon-focused loss
+   - Extended training with patience
+
+4) **Results and artifacts**
+   - Save fine-tuned models for each horizon
+   - Generate per-horizon metrics report
+
+## Issues we faced and how we solved them
+
+### Model Loading and Compatibility
+- **Issue**: PyTorch models not loading due to missing dependencies
+- **Solution**: Lazy loading with graceful fallbacks, minimal TCN definitions embedded
+
+### Horizon Alignment and Continuity
+- **Issue**: Discontinuities between 24h, 48h, and 72h predictions
+- **Solution**: Proper sequence preparation, aligned timestamps, continuous window calculation
+
+### Production Safety
+- **Issue**: Model updates breaking production forecasts
+- **Solution**: Safety gates, model registry, promotion thresholds, rollback capability
+
+### Training Stability
+- **Issue**: Fine-tuning causing model degradation
+- **Solution**: Conservative hyperparameter ranges, early stopping, validation checks
+
+### Data Freshness
+- **Issue**: Stale features causing forecast failures
+- **Solution**: Automatic feature refresh, date range validation, graceful degradation
+
+## What issues were faced in the next script
+
+### From fine-tuning to forecasting
+- **Issue**: Fine-tuned models not compatible with forecast pipeline
+- **Solution**: Consistent model saving format, feature list preservation, scaler compatibility
+
+### From forecasting to production
+- **Issue**: Manual forecasting not sustainable for production
+- **Solution**: Daily automation with comprehensive error handling and logging
+
+### From individual scripts to pipeline
+- **Issue**: Scripts working in isolation but failing in sequence
+- **Solution**: Consistent data formats, shared utilities, proper dependency management
+
+## Outputs produced
+
+### `forecast.py`
+- `saved_models/forecasts/forecast_<timestamp>.csv` - Main forecast results
+- `saved_models/forecasts/forecast_<timestamp>.json` - Metadata and trace info
+- `saved_models/reports/backtest_<timestamp>.csv` - Backtesting results (when enabled)
+
+### `forecast_continuous_72h.py`
+- `saved_models/forecasts/forecast_continuous_72h_<timestamp>.csv` - Future predictions
+- `saved_models/forecasts/forecast_continuous_72h_<timestamp>.json` - Metadata
+- `saved_models/forecasts/forecast_continuous_72h_<timestamp>_visualization.png` - Plots
+
+### `daily_runner.py`
+- Updated model registry in `saved_models/registry/models.json`
+- Fine-tuned models in `saved_models/`
+- Comprehensive logs and status reports
+
+### `phase10_best_model_fine_tuning.py`
+- Fine-tuned models for each algorithm
+- Performance comparison report
+- Hyperparameter optimization results
+
+### `phase11_per_horizon_finetune.py`
+- `saved_models/catboost_24h_finetuned.txt` - 24h CatBoost model
+- `saved_models/tcn_48h_finetuned.pth` - 48h TCN checkpoint
+- `saved_models/tcn_72h_finetuned.pth` - 72h TCN checkpoint
+- `saved_models/per_horizon_finetune_results.csv` - Performance metrics
+
+## How to run
+
+### One-time forecasting
+```bash
+python forecast.py                    # Basic forecast
+python forecast.py --backtest 5      # With backtesting
+python forecast_continuous_72h.py    # Continuous future forecast
+```
+
+### Daily automation
+```bash
+python daily_runner.py               # Full daily pipeline
+```
+
+### Model fine-tuning
+```bash
+python phase10_best_model_fine_tuning.py    # General fine-tuning
+python phase11_per_horizon_finetune.py      # Per-horizon tuning
+```
+
+## What we achieved
+
+### Production-Ready System
+- Automated daily forecasting pipeline with safety gates
+- Deterministic, traceable forecasts with comprehensive metadata
+- Robust error handling and graceful degradation
+
+### Multi-Horizon Forecasting
+- Consistent 24h/48h/72h predictions using specialized models
+- Continuous future forecasting with realistic patterns
+- Proper horizon alignment and continuity
+
+### Model Management
+- Automated fine-tuning and model updates
+- Safety gates preventing model degradation
+- Comprehensive model registry and promotion system
+
+### Operational Excellence
+- Idempotent operations safe for production
+- Comprehensive logging and monitoring
+- Automatic feature refresh and data validation
+
+## Notes and recommendations
+
+### Production deployment
+- Use `daily_runner.py` for automated production forecasting
+- Monitor model registry and promotion thresholds
+- Set up alerts for forecast failures or data issues
+
+### Model updates
+- Fine-tune models periodically using Phase 10/11
+- Test new models before promotion
+- Maintain model versioning and rollback capability
+
+### Monitoring and maintenance
+- Check forecast quality and model performance regularly
+- Monitor data freshness and feature availability
+- Review logs for any pipeline issues or errors

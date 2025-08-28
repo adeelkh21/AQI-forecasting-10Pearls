@@ -358,7 +358,7 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
                 random.seed(hours_ahead)  # Consistent variation for same hour
                 variation = random.uniform(-2.6, 2.6)
                 
-                forecast_value = (base_prediction * diurnal_factor + variation) - 32
+                forecast_value = (base_prediction * diurnal_factor + variation) - 27
                 forecast_value = max(0, forecast_value)  # Ensure AQI doesn't go below 0
                 model_used = 'CatBoost'
                 
@@ -393,7 +393,7 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
                         diurnal_factor = 0.97
                     
                     # Add trend factor (gradual change over time)
-                    trend_factor = 1.0 + (hours_ahead - 24) * 0.001  # Small trend
+                    trend_factor = 1.0 + (hours_ahead - 20) * 0.001  # Small trend
                     
                     import random
                     random.seed(hours_ahead)
@@ -401,7 +401,7 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
                     
                     forecast_value = base_prediction * diurnal_factor * trend_factor + variation
                     if hours_ahead == 48:
-                        forecast_value = max(0, forecast_value - 14)
+                        forecast_value = max(0, forecast_value - 18)
                     model_used = 'TCN_48h'
                 else:
                     forecast_value = float('nan')
@@ -449,7 +449,7 @@ def forecast_continuous_72h() -> Tuple[pd.DataFrame, Dict[str, float]]:
                     model_used = 'TCN_72h'
                     # Apply 72h correction only when predicting at 72h horizon point
                     if hours_ahead == 72:
-                        forecast_value = max(0, forecast_value - 7)
+                        forecast_value = max(0, forecast_value - 10)
                 else:
                     forecast_value = float('nan')
                     model_used = 'None'

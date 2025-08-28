@@ -1,0 +1,21 @@
+# EDA Dependencies for AQI Forecasting System
+# Core data science libraries
+pandas>=1.5.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Interactive plotting
+plotly>=5.0.0
+
+# Machine learning and statistics
+scikit-learn>=1.1.0
+statsmodels>=0.13.0
+
+# Streamlit
+streamlit>=1.25.0
+
+# Additional utilities
+warnings
+datetime
+os

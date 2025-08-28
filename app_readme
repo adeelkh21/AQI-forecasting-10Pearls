@@ -1,0 +1,308 @@
+# AQI Forecasting System — Frontend & Backend
+
+This document covers our complete AQI forecasting system: the Streamlit frontend, FastAPI backend, and the integrated architecture. It details what we built, issues faced and solved, why each component matters, and the outputs achieved.
+
+## Scope
+- **Frontend**: `app/frontend/streamlit_app.py` - Interactive Streamlit interface
+- **Backend**: `app/backend/main.py` - FastAPI server with services
+- **API Endpoints**: RESTful endpoints for data, forecasts, and system operations
+- **Services**: Data, forecast, and job management services
+- **Configuration**: Centralized config management and theming
+
+## What we built
+- A sophisticated, real-time AQI forecasting interface with dark theme and modern UI
+- RESTful FastAPI backend with comprehensive data and forecast services
+- Real-time data visualization with Plotly charts and interactive components
+- Automated job management and data pipeline monitoring
+- Responsive design with professional styling and user experience
+
+## Importance of each component
+
+### 1. **Streamlit Frontend** (`streamlit_app.py`)
+- **Purpose**: Primary user interface for AQI forecasting system
+- **Why it matters**: Provides intuitive access to forecasts, data, and system controls
+- **Key features**: Real-time dashboards, interactive charts, system monitoring, job control
+
+### 2. **FastAPI Backend** (`main.py`)
+- **Purpose**: High-performance API server with async support
+- **Why it matters**: Handles data processing, forecast retrieval, and system operations
+- **Key features**: Async operations, middleware, exception handling, service lifecycle
+
+### 3. **Data Service** (`data_service.py`)
+- **Purpose**: Manages AQI and weather data operations
+- **Why it matters**: Centralized data access with caching and validation
+- **Key features**: Data caching, source status monitoring, summary statistics
+
+### 4. **Forecast Service** (`forecast_service.py`)
+- **Purpose**: Handles forecast data retrieval and management
+- **Why it matters**: Provides forecast data to frontend with caching and validation
+- **Key features**: Forecast caching, file management, metadata extraction
+
+### 5. **API Endpoints** (`api/` directory)
+- **Purpose**: RESTful API for frontend-backend communication
+- **Why it matters**: Structured data exchange and system control
+- **Key features**: Data endpoints, forecast endpoints, system status endpoints
+
+## Detailed Architecture
+
+### Frontend Architecture (Streamlit)
+1) **Page Configuration**
+   - Wide layout with dark theme
+   - Custom CSS for professional styling
+   - Responsive design with hover effects
+
+2) **Main Dashboard**
+   - Real-time AQI metrics and trends
+   - Interactive charts with Plotly
+   - System status indicators
+
+3) **Forecast Visualization**
+   - Multi-horizon forecast charts (24h/48h/72h)
+   - Model comparison and confidence intervals
+   - Historical vs. predicted comparisons
+
+4) **System Control Panel**
+   - Job management and monitoring
+   - Data pipeline status
+   - Manual forecast triggers
+
+### Backend Architecture (FastAPI)
+1) **Service Layer**
+   - DataService: AQI and weather data management
+   - ForecastService: Forecast data and metadata
+   - JobService: Background job orchestration
+
+2) **API Layer**
+   - RESTful endpoints with proper HTTP status codes
+   - Request validation and error handling
+   - CORS and middleware support
+
+3) **Data Management**
+   - File-based data storage with caching
+   - Data validation and quality checks
+   - Source status monitoring
+
+4) **Async Operations**
+   - Non-blocking I/O operations
+   - Background job processing
+   - Real-time data updates
+
+## Detailed Workflows
+
+### Frontend Data Flow
+1) **Page Load**
+   - Initialize session state
+   - Load configuration and theme
+   - Fetch initial data from backend
+
+2) **Real-time Updates**
+   - Periodic API calls for fresh data
+   - Chart updates with new information
+   - Status indicator refreshes
+
+3) **User Interactions**
+   - Chart zoom and pan
+   - Time range selection
+   - Job control actions
+
+4) **Data Visualization**
+   - AQI category color coding
+   - Multi-panel chart layouts
+   - Interactive tooltips and legends
+
+### Backend Data Flow
+1) **Request Handling**
+   - API endpoint routing
+   - Request validation
+   - Service method invocation
+
+2) **Data Processing**
+   - File I/O operations
+   - Data transformation and validation
+   - Cache management
+
+3) **Response Generation**
+   - Data serialization
+   - Error handling and status codes
+   - Response caching
+
+4) **Background Operations**
+   - Job scheduling and execution
+   - Data pipeline monitoring
+   - System health checks
+
+## Issues we faced and how we solved them
+
+### Frontend Performance
+- **Issue**: Slow chart rendering with large datasets
+- **Solution**: Implemented data sampling, pagination, and chart optimization
+
+### Real-time Updates
+- **Issue**: Frequent API calls causing performance issues
+- **Solution**: Implemented intelligent caching, debouncing, and conditional updates
+
+### Data Synchronization
+- **Issue**: Frontend showing stale data
+- **Solution**: Added cache invalidation, timestamp checking, and refresh mechanisms
+
+### Responsive Design
+- **Issue**: UI not working well on different screen sizes
+- **Solution**: Implemented responsive layouts, flexible grids, and mobile-friendly components
+
+### Error Handling
+- **Issue**: Poor user experience when errors occur
+- **Solution**: Added comprehensive error messages, fallback states, and graceful degradation
+
+### Backend Scalability
+- **Issue**: Synchronous operations blocking the server
+- **Solution**: Implemented async operations, background jobs, and connection pooling
+
+## What issues were faced in the next component
+
+### From frontend to backend
+- **Issue**: Frontend making too many API calls
+- **Solution**: Implemented request batching, caching strategies, and rate limiting
+
+### From backend to data services
+- **Issue**: Services not handling errors gracefully
+- **Solution**: Added comprehensive error handling, logging, and fallback mechanisms
+
+### From services to data storage
+- **Issue**: File I/O operations blocking the server
+- **Solution**: Implemented async file operations, caching layers, and background processing
+
+### From individual components to system
+- **Issue**: Components working in isolation but failing together
+- **Solution**: Added integration testing, dependency management, and system health checks
+
+## Outputs produced
+
+### Frontend Outputs
+- **Interactive Dashboard**: Real-time AQI monitoring with professional styling
+- **Forecast Visualizations**: Multi-horizon charts with model comparisons
+- **System Controls**: Job management and pipeline monitoring interface
+- **Responsive UI**: Professional-grade user experience across devices
+
+### Backend Outputs
+- **RESTful API**: Structured endpoints for data and system operations
+- **Data Services**: Centralized data management with caching
+- **Job Management**: Background task orchestration and monitoring
+- **System Monitoring**: Health checks and status reporting
+
+### API Endpoints
+- `GET /forecasts/latest` - Latest forecast data
+- `GET /forecasts/{id}` - Specific forecast by ID
+- `GET /forecasts` - List of available forecasts
+- `GET /data/current` - Current AQI and weather data
+- `GET /data/sources/status` - Data source health status
+- `GET /system/health` - System health and status
+
+### Configuration and Theming
+- **Dark Theme**: Professional dark color scheme
+- **Responsive Layout**: Adaptive design for different screen sizes
+- **Chart Configuration**: Consistent styling and interaction patterns
+- **API Configuration**: Centralized endpoint and service configuration
+
+## How to run
+
+### Frontend (Streamlit)
+```bash
+cd app/frontend
+streamlit run streamlit_app.py
+```
+
+### Backend (FastAPI)
+```bash
+cd app/backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Combined Development
+```bash
+# Terminal 1: Backend
+cd app/backend && uvicorn main:app --reload
+
+# Terminal 2: Frontend
+cd app/frontend && streamlit run streamlit_app.py
+```
+
+### Production Deployment
+```bash
+# Use the provided Docker setup
+cd app/deploy
+docker-compose up -d
+```
+
+## What we achieved
+
+### Professional User Interface
+- Modern, responsive design with dark theme
+- Interactive charts and real-time updates
+- Professional styling and user experience
+- Cross-device compatibility
+
+### Robust Backend System
+- High-performance FastAPI server
+- Comprehensive data and forecast services
+- Async operations and background processing
+- Proper error handling and logging
+
+### Integrated Architecture
+- Seamless frontend-backend communication
+- Centralized configuration management
+- Consistent data flow and caching
+- System monitoring and health checks
+
+### Production Readiness
+- Docker containerization
+- Environment-based configuration
+- Comprehensive logging and monitoring
+- Error handling and graceful degradation
+
+## Technical Features
+
+### Frontend Technologies
+- **Streamlit**: Modern web app framework
+- **Plotly**: Interactive charting library
+- **Custom CSS**: Professional styling and animations
+- **Responsive Design**: Mobile-friendly layouts
+
+### Backend Technologies
+- **FastAPI**: High-performance async web framework
+- **Pydantic**: Data validation and serialization
+- **Async I/O**: Non-blocking operations
+- **Middleware**: CORS, compression, logging
+
+### Data Management
+- **File-based Storage**: CSV and JSON data files
+- **Caching**: In-memory caching with TTL
+- **Validation**: Data quality and schema validation
+- **Monitoring**: Source status and health checks
+
+### System Integration
+- **Service Architecture**: Modular service design
+- **API Design**: RESTful endpoints with proper HTTP codes
+- **Error Handling**: Comprehensive error management
+- **Logging**: Structured logging and monitoring
+
+## Notes and recommendations
+
+### Development workflow
+- Use the combined development setup for local development
+- Test API endpoints independently before frontend integration
+- Monitor logs for both frontend and backend during development
+
+### Performance optimization
+- Implement data pagination for large datasets
+- Use appropriate caching strategies for different data types
+- Monitor API response times and optimize slow endpoints
+
+### Production deployment
+- Use Docker for consistent deployment
+- Configure environment variables for different environments
+- Set up monitoring and alerting for system health
+
+### Maintenance and updates
+- Regular dependency updates and security patches
+- Monitor system performance and user experience
+- Collect user feedback for continuous improvement
