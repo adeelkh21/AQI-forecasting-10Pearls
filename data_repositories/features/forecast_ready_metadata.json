@@ -1,13 +1,13 @@
 {
-    "pipeline_timestamp": "2025-08-28T10:09:43.095156",
+    "pipeline_timestamp": "2025-08-28T13:29:35.014471",
     "output_data": "data_repositories/features/forecast_ready_features.csv",
     "target_features": 50,
     "actual_features_selected": 50,
     "data_shape": [
-        4013,
+        4017,
         55
     ],
-    "date_range": "2025-03-04 00:00:00 to 2025-08-28 04:00:00",
+    "date_range": "2025-03-04 00:00:00 to 2025-08-28 08:00:00",
     "target_variables": {
         "target_aqi_24h": "AQI value 24 hours in the future",
         "target_aqi_48h": "AQI value 48 hours in the future",
