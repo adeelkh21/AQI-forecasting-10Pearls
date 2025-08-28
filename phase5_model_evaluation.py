@@ -7,8 +7,6 @@ This script evaluates all trained models on the CLEAN dataset:
 - Evaluates models on held-out test set
 - Generates comprehensive performance analysis
 
-Author: Data Science Team
-Date: 2024-03-09
 """
 
 import os

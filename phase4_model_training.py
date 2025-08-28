@@ -7,10 +7,6 @@ This script trains various machine learning models on the MULTI-HORIZON dataset:
 - Implements multi-horizon forecasting (24h, 48h, 72h)
 - Implements proper train/validation/test split
 - Saves trained models and performance metrics for all horizons
-
-Author: Data Science Team
-Date: 2024-03-09
-Updated: 2025-01-XX for Multi-Horizon Forecasting
 """
 
 import os

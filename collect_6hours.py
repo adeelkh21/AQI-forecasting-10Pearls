@@ -6,10 +6,6 @@ Smart Data Collection Script (1-Hour Strategy)
 This script automatically detects the last timestamp in the merged CSV file
 and collects new data from that point forward, limited to 1 hour maximum.
 This ensures fast, efficient data collection with minimal processing time.
-
-Author: Data Science Team
-Date: 2025-08-21
-Updated: 2025-08-24 (Changed from 6-hour to 1-hour strategy)
 """
 
 import os

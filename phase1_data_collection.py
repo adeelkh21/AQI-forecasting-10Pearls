@@ -8,8 +8,7 @@ This script collects 2-hour windows of weather and pollution data for AQI predic
 - Converts categorical AQI to numerical values
 - Designed to run every 2 hours via GitHub Actions
 
-Author: Data Science Team
-Date: 2024-03-09
+
 """
 
 import os

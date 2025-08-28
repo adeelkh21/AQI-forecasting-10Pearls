@@ -8,8 +8,7 @@ This script performs hyperparameter optimization for top-performing models:
 - Focuses on SVR, LightGBM, XGBoost, and CatBoost
 - Optimizes for multi-horizon forecasting (24h, 48h, 72h)
 
-Author: Data Science Team
-Date: 2024-03-09
+
 """
 
 import os

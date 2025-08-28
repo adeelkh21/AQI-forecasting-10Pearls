@@ -8,9 +8,6 @@ This script processes data in real-time for the Streamlit UI:
 - Calculates numerical AQI with EPA compliance
 - Creates real-time features for immediate display
 - Optimized for speed and UI responsiveness
-
-Author: Data Science Team
-Date: 2024-03-09
 """
 
 import pandas as pd

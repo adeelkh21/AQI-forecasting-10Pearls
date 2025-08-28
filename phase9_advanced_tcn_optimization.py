@@ -9,8 +9,6 @@ This script performs advanced optimization of TCN models:
 - Focus on TCN_LSTM architecture
 - Ensemble multiple configurations
 
-Author: Data Science Team
-Date: 2024-03-09
 """
 
 import os
