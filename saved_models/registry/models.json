@@ -1,6 +1,6 @@
 {
   "created_at": "2025-08-20T15:49:20.784641",
-  "last_run_at": "2025-08-28T13:02:46.364616",
+  "last_run_at": "2025-08-28T18:45:35.710169",
   "thresholds": {
     "min_rmse_rel_improvement_daily": 0.02
   },
