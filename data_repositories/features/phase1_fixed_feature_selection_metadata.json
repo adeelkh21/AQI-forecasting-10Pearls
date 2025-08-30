@@ -1,5 +1,5 @@
 {
-    "feature_selection_timestamp": "2025-08-30T01:07:37.510797",
+    "feature_selection_timestamp": "2025-08-30T06:21:44.997311",
     "input_data": "data_repositories/features/phase1_no_leakage_data.csv",
     "output_data": "data_repositories/features/phase1_fixed_selected_features.csv",
     "target_features": 50,
@@ -10,10 +10,10 @@
     "feature_columns_path": "data_repositories/features/phase1_fixed_feature_columns.pkl",
     "importance_path": "data_repositories/features/phase1_fixed_feature_importance.csv",
     "data_shape": [
-        3985,
+        3986,
         56
     ],
-    "date_range": "2025-03-04 00:00:00 to 2025-08-27 00:00:00",
+    "date_range": "2025-03-04 00:00:00 to 2025-08-27 01:00:00",
     "target_variables": {
         "target_aqi_24h": "AQI value 24 hours in the future (primary target)",
         "target_aqi_48h": "AQI value 48 hours in the future",
@@ -42,8 +42,8 @@
         "day",
         "wind_speed_60h_mean",
         "pressure_72h_mean",
-        "wind_speed_72h_mean",
         "o3_72h_mean",
+        "wind_speed_72h_mean",
         "temp_24h_mean",
         "pm10_24h_mean",
         "o3_24h_std",
@@ -74,8 +74,8 @@
         "no2_18h_mean",
         "wind_speed_24h_mean",
         "so2_48h_std",
-        "pm2_5_48h_std",
-        "relative_humidity"
+        "relative_humidity",
+        "pm2_5_48h_std"
     ],
     "top_15_features": [
         "pm2_5_18h_mean",
