@@ -1,7 +1,7 @@
 {
-    "preprocessing_timestamp": "2025-08-30T21:14:35.138380",
+    "preprocessing_timestamp": "2025-08-30T22:15:16.720912",
     "training_period": "2025-03-04 to 2025-08-30",
-    "total_records": 3990,
+    "total_records": 3992,
     "feature_columns": [
         "co",
         "coco",
@@ -408,10 +408,10 @@
         "72h": "44.0 to 195.0"
     },
     "data_shape": [
-        3990,
+        3992,
         397
     ],
-    "date_range": "2025-03-04 00:00:00 to 2025-08-27 05:00:00",
+    "date_range": "2025-03-04 00:00:00 to 2025-08-27 07:00:00",
     "missing_values_summary": {
         "co": 0,
         "coco": 0,
