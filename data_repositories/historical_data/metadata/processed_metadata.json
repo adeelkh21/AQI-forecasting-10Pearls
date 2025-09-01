@@ -1,8 +1,8 @@
 {
-    "timestamp": "20250901_123255",
-    "records": 4102,
+    "timestamp": "20250901_141608",
+    "records": 4104,
     "start_date": "2025-03-04 00:00:00",
-    "end_date": "2025-09-01 12:00:00",
+    "end_date": "2025-09-01 14:00:00",
     "features": [
         "aqi_category",
         "co",
@@ -59,16 +59,16 @@
         "precipitation": 167,
         "pressure": 107,
         "relative_humidity": 107,
-        "snow": 4102,
+        "snow": 4104,
         "so2": 0,
         "temperature": 107,
         "timestamp": 0,
-        "tsun": 4102,
+        "tsun": 4104,
         "week_cos": 0,
         "week_of_year": 0,
         "week_sin": 0,
         "wind_direction": 107,
         "wind_speed": 107,
-        "wpgt": 4102
+        "wpgt": 4104
     }
 }
